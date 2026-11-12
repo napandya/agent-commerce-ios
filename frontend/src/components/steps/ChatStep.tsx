@@ -6,36 +6,36 @@ import Animated, { FadeInUp } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, streamChat, type Product } from "@/src/api";
 import { InstacartMark, TargetLogo } from "@/src/components/Brand";
+import type { AgentConfig } from "@/src/agents";
 
-export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productId?: string; error?: boolean };
+export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productIds?: string[]; error?: boolean };
 
-const TAG = /\[\[product:([a-z0-9-]+)\]\]/i;
-const SUGGESTIONS = [
-  "Find me men's leather sandals in size 12 at Target",
-  "I need sandals for a beach trip, size 12",
-  "Show me something in black instead",
-];
+const TAGS = /\[\[(product|add):([a-z0-9-]+)(?::(\d+))?\]\]/gi;
 
 function clean(text: string) {
-  const i = text.indexOf("[[");
-  return (i >= 0 ? text.slice(0, i) : text).trim();
+  return text.replace(/\[\[[^\]]*\]\]/g, "").replace(/\[\[[^\]]*$/, "").trim();
 }
 
 type Props = {
+  agent: AgentConfig;
   sessionId: string;
   messages: ChatMsg[];
   setMessages: React.Dispatch<React.SetStateAction<ChatMsg[]>>;
   products: Record<string, Product>;
-  onCheckout: (p: Product) => void;
+  cart: Record<string, number>;
+  setQty: (id: string, qty: number) => void;
+  onCheckout: () => void;
   checkingOut: boolean;
 };
 
-export function ChatStep({ sessionId, messages, setMessages, products, onCheckout, checkingOut }: Props) {
+export function ChatStep({ agent, sessionId, messages, setMessages, products, cart, setQty, onCheckout, checkingOut }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const scroll = useRef<ScrollView>(null);
+  const gemini = agent.id === "gemini";
+  const cartIds = Object.keys(cart).filter((id) => products[id]);
 
   const send = async (text: string) => {
     const msg = text.trim();
@@ -46,12 +46,17 @@ export function ChatStep({ sessionId, messages, setMessages, products, onCheckou
     setMessages((m) => [...m, { id: `u-${Date.now()}`, role: "user", text: msg }, { id: aid, role: "assistant", text: "" }]);
     let full = "";
     try {
-      await streamChat(sessionId, msg, (d) => {
+      const cartItems = Object.entries(cart).map(([product_id, quantity]) => ({ product_id, quantity }));
+      await streamChat(sessionId, msg, agent.id, cartItems, (d) => {
         full += d;
         setMessages((m) => m.map((x) => (x.id === aid ? { ...x, text: full } : x)));
       });
-      const match = full.match(TAG);
-      setMessages((m) => m.map((x) => (x.id === aid ? { ...x, text: clean(full), productId: match?.[1] } : x)));
+      const ids: string[] = [];
+      for (const [, kind, id, qty] of full.matchAll(TAGS)) {
+        if (kind.toLowerCase() === "add") setQty(id, qty === undefined ? 1 : parseInt(qty, 10));
+        else if (!ids.includes(id)) ids.push(id);
+      }
+      setMessages((m) => m.map((x) => (x.id === aid ? { ...x, text: clean(full), productIds: ids } : x)));
     } catch (e: any) {
       setMessages((m) => m.map((x) => (x.id === aid ? { ...x, text: e.message || "Something went wrong.", error: true } : x)));
     } finally {
@@ -60,10 +65,13 @@ export function ChatStep({ sessionId, messages, setMessages, products, onCheckou
   };
 
   return (
-    <View style={styles.root} testID="chat-step">
+    <View style={[styles.root, gemini && styles.rootGemini]} testID="chat-step">
       <View style={styles.header}>
         <Ionicons name="menu" size={22} color={colors.onSurface} />
-        <Text style={styles.headerTitle}>ChatGPT</Text>
+        <View style={styles.headerCenter}>
+          {gemini && <Ionicons name="sparkles" size={16} color={colors.geminiBlue} />}
+          <Text style={styles.headerTitle} testID="chat-agent-name">{agent.name}</Text>
+        </View>
         <Ionicons name="create-outline" size={22} color={colors.onSurface} />
       </View>
       <ScrollView
@@ -75,9 +83,11 @@ export function ChatStep({ sessionId, messages, setMessages, products, onCheckou
       >
         {messages.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>What are you shopping for?</Text>
-            <Text style={styles.emptySub}>Instacart is connected. Ask ChatGPT to find something at Target.</Text>
-            {SUGGESTIONS.map((s, i) => (
+            <Text style={styles.emptyTitle}>{gemini ? "Hello, Pat. What should we shop for?" : "What are you shopping for?"}</Text>
+            <Text style={styles.emptySub}>
+              {gemini ? "Gemini can check out directly with Target using UCP." : "Instacart is connected. Ask ChatGPT to find something at Target."}
+            </Text>
+            {agent.suggestions.map((s, i) => (
               <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.suggestion} onPress={() => send(s)}>
                 <Ionicons name="sparkles-outline" size={16} color={colors.muted} />
                 <Text style={styles.suggestionText}>{s}</Text>
@@ -97,22 +107,31 @@ export function ChatStep({ sessionId, messages, setMessages, products, onCheckou
               ) : (
                 <ActivityIndicator color={colors.muted} style={styles.typing} />
               )}
-              {m.productId && products[m.productId] && (
-                <ProductWidget product={products[m.productId]} onCheckout={onCheckout} loading={checkingOut} />
+              {m.productIds?.map((id) =>
+                products[id] ? (
+                  <SuggestionRow key={id} product={products[id]} inCart={!!cart[id]} onAdd={() => setQty(id, (cart[id] ?? 0) + 1)} />
+                ) : null,
               )}
             </Animated.View>
           ),
         )}
+        {cartIds.length > 0 && (
+          <CartWidget agent={agent} products={products} cart={cart} setQty={setQty} onCheckout={onCheckout} loading={checkingOut} disabled={busy} />
+        )}
       </ScrollView>
       <View style={styles.composer}>
         <View style={styles.chip}>
-          <InstacartMark label="Instacart" />
+          {gemini ? (
+            <View style={styles.chipRow}><TargetLogo size={14} /><Text style={styles.chipText}>Target</Text></View>
+          ) : (
+            <InstacartMark label="Instacart" />
+          )}
         </View>
         <View style={styles.inputRow}>
           <TextInput
             testID="chat-input"
             style={styles.input}
-            placeholder="Ask ChatGPT"
+            placeholder={`Ask ${agent.name}`}
             placeholderTextColor={colors.muted}
             value={input}
             onChangeText={setInput}
@@ -134,39 +153,89 @@ export function ChatStep({ sessionId, messages, setMessages, products, onCheckou
   );
 }
 
-function ProductWidget({ product, onCheckout, loading }: { product: Product; onCheckout: (p: Product) => void; loading: boolean }) {
+function SuggestionRow({ product, inCart, onAdd }: { product: Product; inCart: boolean; onAdd: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View style={styles.widget} testID={`product-widget-${product.id}`}>
+    <View style={styles.sugRow} testID={`product-suggestion-${product.id}`}>
+      <Image source={{ uri: product.image }} style={styles.sugImg} contentFit="cover" />
+      <View style={styles.flex}>
+        <Text style={styles.pName} numberOfLines={1}>{product.name}</Text>
+        <Text style={styles.pVariant}>{product.variant} · {money(product.price)}</Text>
+      </View>
+      <Pressable testID={`product-add-${product.id}`} onPress={onAdd} hitSlop={6} style={[styles.addBtn, inCart && styles.addBtnOn]}>
+        <Ionicons name={inCart ? "checkmark" : "add"} size={16} color={inCart ? colors.onBrandTertiary : colors.onBrandPrimary} />
+        <Text style={[styles.addText, inCart && styles.addTextOn]}>{inCart ? "Added" : "Add"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+type CartProps = {
+  agent: AgentConfig; products: Record<string, Product>; cart: Record<string, number>;
+  setQty: (id: string, q: number) => void; onCheckout: () => void; loading: boolean; disabled: boolean;
+};
+
+function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabled }: CartProps) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const gemini = agent.id === "gemini";
+  const entries = Object.entries(cart).filter(([id]) => products[id]);
+  const subtotal = entries.reduce((s, [id, q]) => s + products[id].price * q, 0);
+  const count = entries.reduce((s, [, q]) => s + q, 0);
+  return (
+    <Animated.View entering={FadeInUp.duration(260)} style={styles.widget} testID="cart-widget">
       <View style={styles.wHead}>
-        <InstacartMark />
+        {gemini ? (
+          <View style={styles.chipRow}>
+            <TargetLogo size={20} />
+            <Text style={styles.wTitle}>Target</Text>
+            <Text style={styles.ucpBadge}>UCP checkout</Text>
+          </View>
+        ) : (
+          <InstacartMark />
+        )}
+        <Text style={styles.wFee} testID="cart-count">{count} item{count === 1 ? "" : "s"}</Text>
       </View>
-      <View style={styles.wRow}>
-        <TargetLogo size={30} />
-        <View style={styles.flex}>
-          <Text style={styles.wFee}>4% service fee ($2.50 min.)</Text>
-          <Text style={styles.wFee}>$0.15 per bag fee</Text>
+      {!gemini && (
+        <View style={styles.wRow}>
+          <TargetLogo size={30} />
+          <View style={styles.flex}>
+            <Text style={styles.wFee}>4% service fee ($2.50 min.)</Text>
+            <Text style={styles.wFee}>$0.15 per bag fee</Text>
+          </View>
         </View>
-        <Ionicons name="pencil" size={16} color="#FF7009" />
-      </View>
+      )}
       <View style={styles.points} testID="widget-points-banner">
         <Ionicons name="star" size={14} color={colors.onBrandTertiary} />
         <Text style={styles.pointsText}>
           Earning <Text style={styles.bold}>5x Citi ThankYou® Points</Text> using your Citi Custom Cash card
         </Text>
       </View>
-      <View style={styles.wRow}>
-        <Image source={{ uri: product.image }} style={styles.pImg} contentFit="cover" />
-        <View style={styles.flex}>
-          <Text style={styles.pName} numberOfLines={2}>{product.name}</Text>
-          <Text style={styles.pVariant}>{product.variant}</Text>
-          <Text style={styles.pPrice}>
-            {money(product.price)} <Text style={styles.strike}>{money(product.compare_at)}</Text>
-          </Text>
-        </View>
-        <View style={styles.qty}><Text style={styles.qtyText}>1 ct</Text></View>
-      </View>
+      {entries.map(([id, q]) => {
+        const p = products[id];
+        return (
+          <View key={id} style={styles.wRow} testID={`cart-item-${id}`}>
+            <Image source={{ uri: p.image }} style={styles.pImg} contentFit="cover" />
+            <View style={styles.flex}>
+              <Text style={styles.pName} numberOfLines={2}>{p.name}</Text>
+              <Text style={styles.pVariant}>{p.variant}</Text>
+              <Text style={styles.pPrice}>
+                {money(p.price)} <Text style={styles.strike}>{money(p.compare_at)}</Text>
+              </Text>
+            </View>
+            <View style={styles.stepper}>
+              <Pressable testID={`cart-decrease-${id}`} style={styles.stepBtn} onPress={() => setQty(id, q - 1)} hitSlop={4}>
+                <Ionicons name={q === 1 ? "trash-outline" : "remove"} size={16} color={colors.onSurface} />
+              </Pressable>
+              <Text style={styles.qtyText} testID={`cart-qty-${id}`}>{q}</Text>
+              <Pressable testID={`cart-increase-${id}`} style={styles.stepBtn} onPress={() => setQty(id, q + 1)} disabled={q >= 10} hitSlop={4}>
+                <Ionicons name="add" size={16} color={q >= 10 ? colors.muted : colors.onSurface} />
+              </Pressable>
+            </View>
+          </View>
+        );
+      })}
       <View style={styles.wFoot}>
         <View>
           <Text style={styles.wFee}>Delivery by 11:45am</Text>
@@ -174,18 +243,38 @@ function ProductWidget({ product, onCheckout, loading }: { product: Product; onC
         </View>
         <View style={styles.right}>
           <Text style={styles.wFee}>Items subtotal</Text>
-          <Text style={styles.subtotal}>{money(product.price)}</Text>
+          <Text style={styles.subtotal} testID="cart-subtotal">{money(subtotal)}</Text>
         </View>
       </View>
-      <Pressable testID="widget-checkout-button" style={styles.checkout} onPress={() => onCheckout(product)} disabled={loading}>
-        {loading ? <ActivityIndicator color={colors.onBrandSecondary} /> : <Text style={styles.checkoutText}>Checkout</Text>}
+      <Pressable
+        testID="widget-checkout-button"
+        style={[styles.checkout, gemini && styles.checkoutGemini, disabled && styles.sendOff]}
+        onPress={onCheckout}
+        disabled={loading || disabled}
+      >
+        {loading ? <ActivityIndicator color={colors.onBrandSecondary} /> : <Text style={styles.checkoutText}>{gemini ? "Buy with Gemini" : "Checkout"}</Text>}
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
   root: { flex: 1, backgroundColor: c.surface },
+  rootGemini: { backgroundColor: c.geminiSurface },
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 6 },
+  chipRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  chipText: { fontSize: 15, fontWeight: "700", color: c.onSurface },
+  wTitle: { fontSize: 15, fontWeight: "700", color: c.onSurface },
+  ucpBadge: { fontSize: 10, fontWeight: "700", color: c.onGeminiBlue, backgroundColor: c.geminiBlue, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, overflow: "hidden" },
+  sugRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 8 },
+  sugImg: { width: 40, height: 40, borderRadius: 8, backgroundColor: c.surfaceSecondary },
+  addBtn: { flexDirection: "row", alignItems: "center", gap: 4, height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: c.brandPrimary },
+  addBtnOn: { backgroundColor: c.brandTertiary },
+  addText: { fontSize: 13, fontWeight: "700", color: c.onBrandPrimary },
+  addTextOn: { color: c.onBrandTertiary },
+  stepper: { flexDirection: "row", alignItems: "center", backgroundColor: c.surfaceSecondary, borderRadius: 999 },
+  stepBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  checkoutGemini: { backgroundColor: c.geminiBlue },
   flex: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 8 },
   headerTitle: { fontSize: 17, fontWeight: "600", color: c.onSurface },
@@ -207,7 +296,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1, borderColor: c.border, borderRadius: 16, backgroundColor: c.surface, overflow: "hidden",
     shadowColor: c.onSurface, shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
   },
-  wHead: { padding: 12, borderBottomWidth: 1, borderBottomColor: c.divider },
+  wHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 12, borderBottomWidth: 1, borderBottomColor: c.divider },
   wRow: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderBottomWidth: 1, borderBottomColor: c.divider },
   wFee: { fontSize: 12, color: c.muted },
   points: { flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: c.brandTertiary, paddingHorizontal: 12, paddingVertical: 8 },

@@ -1,9 +1,9 @@
 import { Text, View } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { makeStyles, useTheme } from "@/src/theme";
-import { STEPS } from "@/src/protocols";
 
-export function Stepper({ step, declined }: { step: number; declined?: boolean }) {
+export function Stepper({ step, declined, labels }: { step: number; declined?: boolean; labels: string[] }) {
+  const STEPS = labels;
   const styles = useStyles();
   const { colors } = useTheme();
   return (

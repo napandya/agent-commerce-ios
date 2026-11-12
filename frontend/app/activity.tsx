@@ -5,6 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles, useTheme } from "@/src/theme";
 import { api, money, type Txn } from "@/src/api";
+import { InsightsCard } from "@/src/components/InsightsCard";
 
 const STATUS = {
   completed: { label: "Completed", key: "success" },
@@ -20,9 +21,11 @@ export default function Activity() {
   const [items, setItems] = useState<Txn[] | null>(null);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(() => {
     setError(false);
+    setRefreshKey((k) => k + 1);
     return api.transactions().then(setItems).catch(() => setError(true));
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -49,6 +52,10 @@ export default function Activity() {
           <View style={styles.head}>
             <Text style={styles.large}>Agent Activity</Text>
             <Text style={styles.sub}>Purchases requested by AI agents on card ···· 4680</Text>
+            <View style={styles.insights}>
+              <InsightsCard refreshKey={refreshKey} />
+            </View>
+            <Text style={styles.section}>ALL TRANSACTIONS</Text>
           </View>
         }
         ListEmptyComponent={
@@ -96,6 +103,8 @@ const useStyles = makeStyles((c) => ({
   iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   content: { paddingHorizontal: 16, gap: 8 },
   head: { gap: 4, marginBottom: 8 },
+  insights: { marginTop: 12 },
+  section: { fontSize: 12, fontWeight: "700", color: c.muted, letterSpacing: 0.5 },
   large: { fontSize: 32, fontWeight: "800", color: c.onSurface },
   sub: { fontSize: 14, color: c.muted, textAlign: "left" },
   loader: { marginTop: 32 },

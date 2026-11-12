@@ -10,9 +10,11 @@ export type Totals = {
   subtotal: number; delivery_fee: number; service_fee: number; bag_fee: number;
   tip: number; tax: number; total: number;
 };
+export type LineItem = { product: Product; quantity: number; line_total: number };
+export type CartItem = { product_id: string; quantity: number };
 export type CheckoutSession = {
   id: string; status: string; protocol: string; merchant: string; agent_id: string;
-  product: Product; quantity: number; totals: Totals; currency: string;
+  line_items: LineItem[]; summary: string; totals: Totals; currency: string;
   fulfillment: { type: string; address: string; window: string };
   card: { brand: string; last4: string; product: string }; created_at: string;
 };
@@ -36,6 +38,11 @@ export type Agent = {
   limit: number; revoked: boolean; connected_at: string;
 };
 export type PaymentOption = "card" | "flex_pay" | "points";
+export type Breakdown = { name: string; amount: number; count: number };
+export type Insights = {
+  month: string; total_spent: number; purchases: number; declined: number; points_earned: number;
+  by_agent: Breakdown[]; by_merchant: Breakdown[];
+};
 
 async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -52,7 +59,9 @@ async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> 
 }
 
 export const api = {
-  createCheckout: (product_id: string) => req<CheckoutSession>("/checkout_sessions", "POST", { product_id, quantity: 1, tip: 5 }),
+  createCheckout: (items: CartItem[], agent_id: string) => req<CheckoutSession>("/checkout_sessions", "POST", { items, tip: 5, agent_id }),
+  updateCheckout: (sid: string, body: { items?: CartItem[]; tip?: number }) => req<CheckoutSession>(`/checkout_sessions/${sid}`, "PATCH", body),
+  insights: (month: string) => req<Insights>(`/insights?month=${month}`),
   tokenize: (checkout_session_id: string) => req<AgentToken>("/agentpay/tokenize", "POST", { checkout_session_id }),
   authorize: (checkout_session_id: string, decision: "approve" | "decline") =>
     req<Txn>("/citi/authorize", "POST", { checkout_session_id, decision }),
@@ -63,11 +72,13 @@ export const api = {
   revokeAgent: (id: string) => req<Agent>(`/agents/${id}/revoke`, "POST"),
 };
 
-export async function streamChat(sessionId: string, message: string, onDelta: (t: string) => void): Promise<void> {
+export async function streamChat(
+  sessionId: string, message: string, agentId: string, cart: CartItem[], onDelta: (t: string) => void,
+): Promise<void> {
   const res = await expoFetch(`${API}/chat/stream`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: JSON.stringify({ session_id: sessionId, message }),
+    body: JSON.stringify({ session_id: sessionId, message, agent_id: agentId, cart }),
   });
   if (!res.ok || !res.body) throw new Error("Chat unavailable");
   const reader = res.body.getReader();

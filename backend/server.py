@@ -86,6 +86,33 @@ PRODUCTS = {
         "image": "https://images.unsplash.com/photo-1562273138-f46be4ebdf33?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
         "retailer": "Target",
     },
+    "gf-socks-6pk": {
+        "id": "gf-socks-6pk",
+        "name": "Goodfellow & Co Men's No-Show Socks 6pk",
+        "variant": "Size 7-12 — Assorted",
+        "short": "No-Show Socks 6pk",
+        "price": 12.00,
+        "compare_at": 15.00,
+        "image": "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Target",
+    },
+    "gf-swim-navy": {
+        "id": "gf-swim-navy",
+        "name": "Goodfellow & Co Men's 7\" Swim Shorts",
+        "variant": "Size L — Navy",
+        "short": "Swim Shorts",
+        "price": 20.00,
+        "compare_at": 25.00,
+        "image": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Target",
+    },
+}
+
+AGENT_JOURNEYS = {
+    "chatgpt": {"name": "ChatGPT", "app": "the Instacart app inside ChatGPT", "merchant": "Target via Instacart",
+                "protocol": "ACP 2025-09-29", "widget": "Instacart widget"},
+    "gemini": {"name": "Gemini", "app": "Target's UCP checkout inside Gemini", "merchant": "Target",
+               "protocol": "UCP 2026-01 + AP2", "widget": "Target cart"},
 }
 
 DELIVERY_FEE = 7.99
@@ -99,30 +126,49 @@ DEFAULT_AGENTS = [
     {"id": "perplexity", "name": "Perplexity", "provider": "Perplexity AI", "protocol": "Agent Pay", "enabled": False, "limit": 100.0},
 ]
 
-SYSTEM_PROMPT = f"""You are ChatGPT using the Instacart app to help a Citi cardholder shop at Target.
+CATALOG_JSON = json.dumps([{k: p[k] for k in ("id", "name", "variant", "price")} for p in PRODUCTS.values()])
+
+
+def system_prompt(agent_id: str, cart: list) -> str:
+    j = AGENT_JOURNEYS.get(agent_id, AGENT_JOURNEYS["chatgpt"])
+    cart_txt = ", ".join(f"{c.quantity}x {c.product_id}" for c in cart) or "empty"
+    return f"""You are {j['name']} using {j['app']} to help a Citi cardholder shop at Target.
 Be concise (2-4 short sentences), friendly, and practical.
-Available products (only these are in stock at Target via Instacart, ship to 10848 South Bell Avenue, Chicago):
-{json.dumps([{k: p[k] for k in ("id", "name", "variant", "price")} for p in PRODUCTS.values()])}
+Available products (only these are in stock, delivering to 10848 South Bell Avenue, Chicago):
+{CATALOG_JSON}
+Current cart: {cart_txt}
 Rules:
-- When you recommend or the user asks to add a product, include exactly one tag on its own final line: [[product:<id>]] using an id from the list.
-- Mention that paying with the Citi Custom Cash card earns 5x Citi ThankYou Points on Instacart when recommending.
-- Tell the user they can tap Checkout in the Instacart widget.
+- When recommending products, put one tag per product on its own final lines: [[product:<id>]] (max 3).
+- When the user explicitly asks to add an item or change its quantity, add a tag [[add:<id>:<total quantity>]]; use quantity 0 to remove.
+- Mention that paying with the Citi Custom Cash card earns 5x Citi ThankYou Points when recommending.
+- Tell the user they can adjust quantities and tap Checkout in the {j['widget']}.
 - For unrelated requests, steer politely back to shopping. Never invent other products."""
 
 
 # ---------------------------------------------------------------------------
 # Models
 # ---------------------------------------------------------------------------
+class LineItemIn(BaseModel):
+    product_id: str
+    quantity: int = Field(default=1, ge=1, le=10)
+
+
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    agent_id: str = "chatgpt"
+    cart: List[LineItemIn] = []
 
 
 class CheckoutCreate(BaseModel):
-    product_id: str
-    quantity: int = Field(default=1, ge=1, le=20)
+    items: List[LineItemIn] = Field(min_length=1, max_length=10)
     tip: float = Field(default=5.0, ge=0, le=100)
     agent_id: str = "chatgpt"
+
+
+class CheckoutUpdate(BaseModel):
+    items: Optional[List[LineItemIn]] = Field(default=None, min_length=1, max_length=10)
+    tip: Optional[float] = Field(default=None, ge=0, le=100)
 
 
 class TokenizeRequest(BaseModel):
@@ -143,8 +189,24 @@ class AgentUpdate(BaseModel):
     limit: Optional[float] = Field(default=None, ge=0, le=10000)
 
 
-def compute_totals(price: float, qty: int, tip: float) -> dict:
-    subtotal = round(price * qty, 2)
+def build_lines(items: List[LineItemIn]) -> list:
+    lines = []
+    for it in items:
+        p = PRODUCTS.get(it.product_id)
+        if not p:
+            raise HTTPException(404, f"Product not found: {it.product_id}")
+        lines.append({"product": p, "quantity": it.quantity, "line_total": round(p["price"] * it.quantity, 2)})
+    return lines
+
+
+def summarize(lines: list) -> str:
+    first = lines[0]
+    label = first["product"]["short"] + (f" ×{first['quantity']}" if first["quantity"] > 1 else "")
+    return label if len(lines) == 1 else f"{label} + {len(lines) - 1} more"
+
+
+def compute_totals(lines: list, tip: float) -> dict:
+    subtotal = round(sum(l["line_total"] for l in lines), 2)
     service = round(max(2.50, subtotal * 0.04), 2)
     tax = round(subtotal * TAX_RATE, 2)
     total = round(subtotal + DELIVERY_FEE + service + BAG_FEE + tip + tax, 2)
@@ -196,7 +258,7 @@ async def chat_stream(req: ChatRequest):
     prompt = (f"Conversation so far:\n{context}\n\nUSER: {req.message}" if context else req.message)
     await db.chat_messages.insert_one({"session_id": req.session_id, "role": "user", "text": req.message, "created_at": now_iso()})
 
-    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"{req.session_id}-{uuid.uuid4()}", system_message=SYSTEM_PROMPT).with_model("openai", "gpt-5.4")
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"{req.session_id}-{uuid.uuid4()}", system_message=system_prompt(req.agent_id, req.cart)).with_model("openai", "gpt-5.4")
 
     async def gen():
         full = ""
@@ -220,17 +282,15 @@ async def chat_stream(req: ChatRequest):
 # ---------------- ACP: checkout session ----------------
 @api.post("/checkout_sessions")
 async def create_checkout(body: CheckoutCreate):
-    p = PRODUCTS.get(body.product_id)
-    if not p:
-        raise HTTPException(404, "Product not found")
-    if not await db.agents.find_one({"id": body.agent_id}):
+    journey = AGENT_JOURNEYS.get(body.agent_id)
+    if not journey or not await db.agents.find_one({"id": body.agent_id}):
         raise HTTPException(404, "Agent not found")
-    totals = compute_totals(p["price"], body.quantity, body.tip)
+    lines = build_lines(body.items)
     sid = f"cs_{secrets.token_hex(8)}"
     session = {
-        "id": sid, "status": "ready_for_payment", "protocol": "ACP 2025-09-29",
-        "merchant": "Target via Instacart", "agent_id": body.agent_id,
-        "product": p, "quantity": body.quantity, "totals": totals, "currency": "USD",
+        "id": sid, "status": "ready_for_payment", "protocol": journey["protocol"],
+        "merchant": journey["merchant"], "agent_id": body.agent_id,
+        "line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, body.tip), "currency": "USD",
         "fulfillment": {"type": "delivery", "address": "10848 South Bell Avenue, Chicago, IL", "window": "10:16am – 11:17am"},
         "card": CARD, "created_at": now_iso(),
     }
@@ -241,6 +301,19 @@ async def create_checkout(body: CheckoutCreate):
 @api.get("/checkout_sessions/{sid}")
 async def read_checkout(sid: str):
     return await get_session(sid)
+
+
+# ACP "update checkout session" / UCP cart update: change items or tip before authorization
+@api.patch("/checkout_sessions/{sid}")
+async def update_checkout(sid: str, body: CheckoutUpdate):
+    s = await get_session(sid)
+    if s["status"] != "ready_for_payment":
+        raise HTTPException(400, "Checkout is locked after Citi authorization")
+    lines = build_lines(body.items) if body.items else s["line_items"]
+    tip = body.tip if body.tip is not None else s["totals"]["tip"]
+    upd = {"line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, tip)}
+    await db.checkout_sessions.update_one({"id": sid}, {"$set": upd})
+    return {**s, **upd}
 
 
 # ---------------- Mastercard Agent Pay: agentic token ----------------
@@ -285,7 +358,8 @@ async def citi_authorize(body: AuthorizeRequest):
         "id": existing["id"] if existing else f"txn_{secrets.token_hex(6)}",
         "checkout_session_id": s["id"], "merchant": s["merchant"],
         "agent_id": s["agent_id"], "agent_name": agent["name"] if agent else s["agent_id"],
-        "item": s["product"]["short"], "item_full": f"{s['product']['name']} ({s['product']['variant']})",
+        "item": s["summary"],
+        "item_full": "; ".join(f"{l['quantity']}x {l['product']['name']} ({l['product']['variant']})" for l in s["line_items"]),
         "amount": amount, "card_last4": CARD["last4"], "status": status, "reason": reason,
         "auth_code": secrets.token_hex(3).upper() if status == "approved" else None,
         "points_earned": 0, "payment_option": None,
@@ -308,7 +382,7 @@ async def complete_checkout(sid: str, body: CompleteRequest):
     total = s["totals"]["total"]
     points = 0 if body.payment_option == "points" else int(total * POINTS_PER_DOLLAR)
     order = {
-        "order_id": f"IC-{secrets.randbelow(900000) + 100000}",
+        "order_id": f"{'TGT' if s['agent_id'] == 'gemini' else 'IC'}-{secrets.randbelow(900000) + 100000}",
         "status": "completed", "points_earned": points,
         "points_redeemed": int(round(total * 100)) if body.payment_option == "points" else 0,
         "payment_option": body.payment_option,
@@ -323,6 +397,72 @@ async def complete_checkout(sid: str, body: CompleteRequest):
 @api.get("/transactions")
 async def list_transactions():
     return await db.transactions.find({}, {"_id": 0}).sort("created_at", -1).to_list(100)
+
+
+# ---------------- Spending insights ----------------
+def month_shift(dt: datetime, k: int) -> tuple[int, int]:
+    idx = dt.year * 12 + (dt.month - 1) - k
+    return idx // 12, idx % 12 + 1
+
+
+SEED_TXNS = [
+    (0, 2, "gemini", "Target", "Beach Towel Set", 32.40, "completed", None),
+    (0, 5, "chatgpt", "DoorDash", "Dinner order", 41.18, "completed", None),
+    (0, 8, "gemini", "Best Buy", "USB-C Charger", 58.99, "declined", "Declined by cardholder"),
+    (1, 3, "chatgpt", "Target via Instacart", "Weekly groceries", 86.42, "completed", None),
+    (1, 12, "gemini", "Walmart", "Kitchen essentials", 54.10, "completed", None),
+    (1, 19, "perplexity", "Best Buy", "Wireless earbuds", 79.99, "completed", None),
+    (1, 25, "chatgpt", "Etsy", "Custom mug", 24.00, "completed", None),
+    (2, 6, "chatgpt", "Target via Instacart", "Party supplies", 63.75, "completed", None),
+    (2, 14, "gemini", "Target", "Running socks", 18.50, "completed", None),
+    (2, 22, "perplexity", "Expedia", "Hotel deposit", 120.00, "declined", "Exceeds $100.00 agent spending limit"),
+]
+AGENT_NAMES = {a["id"]: a["name"] for a in DEFAULT_AGENTS}
+
+
+async def seed_history() -> None:
+    now = datetime.now(timezone.utc)
+    for i, (k, day, agent, merchant, item, amount, status, reason) in enumerate(SEED_TXNS):
+        y, m = month_shift(now, k)
+        d = min(day, now.day) if k == 0 else day
+        created = datetime(y, m, d, 0, 30, tzinfo=timezone.utc).isoformat()
+        doc = {
+            "id": f"seed_{i}", "checkout_session_id": f"seed_cs_{i}", "merchant": merchant, "agent_id": agent,
+            "agent_name": AGENT_NAMES[agent], "item": item, "item_full": item, "amount": amount,
+            "card_last4": CARD["last4"], "status": status, "reason": reason,
+            "auth_code": secrets.token_hex(3).upper() if status == "completed" else None,
+            "points_earned": int(amount * POINTS_PER_DOLLAR) if status == "completed" else 0,
+            "payment_option": "card" if status == "completed" else None, "created_at": created, "seeded": True,
+        }
+        await db.transactions.update_one({"id": doc["id"]}, {"$setOnInsert": doc}, upsert=True)
+
+
+@api.get("/insights")
+async def insights(month: Optional[str] = None):
+    now = datetime.now(timezone.utc)
+    month = month or f"{now.year:04d}-{now.month:02d}"
+    if len(month) != 7 or month[4] != "-" or not (month[:4] + month[5:]).isdigit() or not 1 <= int(month[5:]) <= 12:
+        raise HTTPException(422, "month must be YYYY-MM")
+    rows = await db.transactions.find({"created_at": {"$regex": f"^{month}"}}, {"_id": 0}).to_list(1000)
+    spent = [r for r in rows if r["status"] == "completed"]
+    by_agent: dict = {}
+    by_merchant: dict = {}
+    for r in spent:
+        a = by_agent.setdefault(r["agent_name"], {"name": r["agent_name"], "amount": 0.0, "count": 0})
+        a["amount"] = round(a["amount"] + r["amount"], 2)
+        a["count"] += 1
+        mm = by_merchant.setdefault(r["merchant"], {"name": r["merchant"], "amount": 0.0, "count": 0})
+        mm["amount"] = round(mm["amount"] + r["amount"], 2)
+        mm["count"] += 1
+    return {
+        "month": month,
+        "total_spent": round(sum(r["amount"] for r in spent), 2),
+        "purchases": len(spent),
+        "declined": sum(1 for r in rows if r["status"] == "declined"),
+        "points_earned": sum(r.get("points_earned", 0) for r in spent),
+        "by_agent": sorted(by_agent.values(), key=lambda x: -x["amount"]),
+        "by_merchant": sorted(by_merchant.values(), key=lambda x: -x["amount"]),
+    }
 
 
 # ---------------- Citi agent controls ----------------
@@ -360,6 +500,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 async def startup():
     app.state.index_task = asyncio.create_task(ensure_indexes())
     await ensure_agents()
+    await seed_history()
 
 
 @app.on_event("shutdown")

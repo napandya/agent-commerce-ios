@@ -7,9 +7,9 @@ import { money, type CheckoutSession, type Order, type Txn } from "@/src/api";
 const OPTION_LABEL = { card: "Mastercard ···· 4680", flex_pay: "Citi Flex Pay", points: "Citi ThankYou® Points" };
 
 export function ConfirmedStep({
-  session, order, txn, declined, onActivity, onRestart,
+  agentName, session, order, txn, declined, onActivity, onRestart,
 }: {
-  session: CheckoutSession; order: Order | null; txn: Txn | null; declined: boolean;
+  agentName: string; session: CheckoutSession; order: Order | null; txn: Txn | null; declined: boolean;
   onActivity: () => void; onRestart: () => void;
 }) {
   const styles = useStyles();
@@ -17,13 +17,14 @@ export function ConfirmedStep({
   const rows: [string, string][] = declined
     ? [
         ["Merchant", session.merchant],
-        ["Agent", "ChatGPT"],
+        ["Agent", agentName],
         ["Amount", money(session.totals.total)],
         ["Reason", txn?.reason ?? "Declined"],
       ]
     : [
         ["Order", order?.order_id ?? "—"],
-        ["Item", `${session.product.name} (${session.product.variant})`],
+        ...session.line_items.map((l) => [`${l.quantity}×`, `${l.product.name} (${l.product.variant})`] as [string, string]),
+        ["Tip", money(session.totals.tip)],
         ["Paid with", order ? OPTION_LABEL[order.payment_option] : "—"],
         ...(order?.flex_monthly ? [["Flex Pay", `6 × ${money(order.flex_monthly)}/mo`] as [string, string]] : []),
         ["Total", money(session.totals.total)],
@@ -40,8 +41,8 @@ export function ConfirmedStep({
       </Animated.Text>
       <Animated.Text entering={FadeInUp.delay(180)} style={styles.sub}>
         {declined
-          ? "No payment token was issued. ChatGPT has been told the purchase was not authorized."
-          : "Instacart is preparing your Target order. ChatGPT received the order confirmation."}
+          ? `No payment credential was issued. ${agentName} has been told the purchase was not authorized.`
+          : `${session.merchant} is preparing your order. ${agentName} received the order confirmation.`}
       </Animated.Text>
 
       {!declined && order && order.points_earned > 0 && (
@@ -53,7 +54,7 @@ export function ConfirmedStep({
 
       <Animated.View entering={FadeInUp.delay(300)} style={styles.card}>
         {rows.map(([k, v], i) => (
-          <View key={k} style={[styles.row, i === rows.length - 1 && styles.noBorder]}>
+          <View key={`${k}-${i}`} style={[styles.row, i === rows.length - 1 && styles.noBorder]}>
             <Text style={styles.key}>{k}</Text>
             <Text style={styles.val}>{v}</Text>
           </View>

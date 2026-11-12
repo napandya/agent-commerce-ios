@@ -50,16 +50,31 @@ export default function Home() {
         </View>
 
         <View style={styles.section}>
-          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-            <Pressable testID="start-journey-button" style={styles.start} onPress={() => router.push("/journey")}>
+          <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.journeys}>
+            <Pressable testID="start-journey-button" style={styles.start} onPress={() => router.push("/journey?agent=chatgpt")}>
               <View style={styles.startIcon}>
                 <Ionicons name="chatbubbles" size={22} color={colors.onBrandPrimary} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.startTitle}>Start shopping journey</Text>
+                <Text style={styles.startTitle}>ChatGPT journey · ACP</Text>
                 <Text style={styles.startSub}>ChatGPT → Instacart → Citi authorization</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
+            </Pressable>
+            <Pressable testID="start-gemini-journey-button" style={[styles.start, styles.startGemini]} onPress={() => router.push("/journey?agent=gemini")}>
+              <View style={[styles.startIcon, styles.startIconGemini]}>
+                <Ionicons name="sparkles" size={22} color={colors.onGeminiBlue} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.startTitle}>Gemini journey · UCP + AP2</Text>
+                <Text style={styles.startSub}>Gemini → Target (UCP) → Citi mandates</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
+            </Pressable>
+            <Pressable testID="home-compare-link" style={styles.compare} onPress={() => router.push("/compare")}>
+              <Ionicons name="git-compare-outline" size={18} color={colors.stepActive} />
+              <Text style={styles.compareText}>Compare ACP vs UCP + AP2 side by side</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.stepActive} />
             </Pressable>
           </Animated.View>
 
@@ -111,6 +126,11 @@ const useStyles = makeStyles((c) => ({
   agentPill: { flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: c.citiBlue, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   agentPillText: { fontSize: 11, fontWeight: "700", color: c.onInfo },
   section: { padding: 16, gap: 12 },
+  journeys: { gap: 8 },
+  startGemini: { backgroundColor: c.citiCard },
+  startIconGemini: { backgroundColor: c.geminiBlue },
+  compare: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44, paddingHorizontal: 4 },
+  compareText: { flex: 1, fontSize: 14, fontWeight: "600", color: c.stepActive },
   start: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.brandPrimary, borderRadius: 20, padding: 16, minHeight: 72 },
   startIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.citiBlue, alignItems: "center", justifyContent: "center" },
   startTitle: { fontSize: 16, fontWeight: "700", color: c.onBrandPrimary },

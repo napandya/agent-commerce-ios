@@ -12,6 +12,10 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 - Mock endpoints: ACP `/api/checkout_sessions` (+ `/complete`), Agent Pay `/api/agentpay/tokenize`, Citi `/api/citi/authorize` (enforces agent enabled/revoked + per-purchase limit), `/api/agents`, `/api/transactions`
 
 ## Implemented (Jun 2026)
+- Gemini journey (UCP + AP2 mandates, Target as merchant) alongside ChatGPT/ACP; /compare screen
+- Multi-item cart: AI suggestions with Add, qty steppers, PATCH checkout session for items & tip
+- Spending Insights on Agent Activity (month nav, by agent/merchant), seeded demo history
+- Tested: iteration 3 pass (48/48 backend)
 - Full 6-step journey matching screenshots, $49.61 total, 5x ThankYou points, Flex Pay / points options
 - Protocol panel with flow, key points and mock JSON per step
 - Decline path (user decline or limit/agent-revoked decline), stepper shows DECLINED

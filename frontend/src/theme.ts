@@ -60,6 +60,9 @@ const light = {
   stepActive: "#2563EB",
   stepDone: "#1F6B3A",
   overlay: "rgba(0,0,0,0.45)",
+  geminiBlue: "#1A73E8",
+  onGeminiBlue: "#FFFFFF",
+  geminiSurface: "#F0F4F9",
 
   // ---------------------------------------------------------------------------
   // Brand: the identity color and the fills built from it.

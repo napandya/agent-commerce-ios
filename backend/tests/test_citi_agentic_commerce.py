@@ -33,7 +33,7 @@ CREATED_IDS = []
 
 
 def _checkout(s, pid="gf-saul-taupe"):
-    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"product_id": pid})
+    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"items": [{"product_id": pid, "quantity": 1}]})
     assert r.status_code == 200, r.text
     CREATED_IDS.append(r.json()["id"])
     with open("/tmp/created_cs_ids.txt", "a") as f:
@@ -79,7 +79,7 @@ def test_checkout_totals_taupe(s):
 
 
 def test_checkout_invalid_product(s):
-    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"product_id": "nope"})
+    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"items": [{"product_id": "nope", "quantity": 1}]})
     assert r.status_code == 404
 
 
@@ -238,14 +238,14 @@ def test_authorize_canceled_session_unchanged(s):
     assert s.get(f"{BASE_URL}/api/checkout_sessions/{cs['id']}").json()["status"] == "canceled"
 
 
-@pytest.mark.parametrize("payload", [{"quantity": 0}, {"quantity": -1}, {"tip": -1}, {"quantity": 21}])
-def test_checkout_validation_422(s, payload):
-    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"product_id": "gf-saul-taupe", **payload})
+@pytest.mark.parametrize("qty,tip", [(0, 5), (-1, 5), (1, -1), (21, 5)])
+def test_checkout_validation_422(s, qty, tip):
+    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"items": [{"product_id": "gf-saul-taupe", "quantity": qty}], "tip": tip})
     assert r.status_code == 422, r.text
 
 
 def test_checkout_unknown_agent_404(s):
-    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"product_id": "gf-saul-taupe", "agent_id": "nope"})
+    r = s.post(f"{BASE_URL}/api/checkout_sessions", json={"items": [{"product_id": "gf-saul-taupe", "quantity": 1}], "agent_id": "nope"})
     assert r.status_code == 404
 
 

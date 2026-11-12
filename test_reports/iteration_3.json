@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 3 (multi-item cart, Gemini UCP+AP2 journey, compare screen, Spending Insights). Backend: 48/48 pytest pass (19 new in test_multi_cart_insights.py + 29 updated legacy regression tests). Frontend (390x844 web preview): Gemini journey E2E passed (header 'Gemini · UCP + AP2', chat-agent-name Gemini, suggestion -> 3 product-add buttons, cart widget +/- and subtotal, 'Buy with Gemini', review-line rows, tip-chip-6.5 PATCH $95.22 -> $96.72, back to chat + qty change re-PATCHes the same session, FaceID -> Authorize shows Protocol 'UCP + AP2', 'Pay Target', confirmed with TGT- order and all line items). Gemini protocol panel titles verified: Discovery & Intent Mandate / UCP checkout session / User presence proof / Cart & Payment Mandates / Complete UCP checkout / Order confirmed. LLM [[add:id:qty]] tag auto-populates the cart (e.g. 'Add 6-pack of socks', 'Add 1 black sandals and 2 swim shorts'). ChatGPT journey regression: approve (IC- order, 'Pay Instacart') and decline (Purchase declined, step DECLINED, 'Session canceled') pass; qty max 10 enforced (increase disabled), trash at qty 1 removes item. Compare screen: 6 compare-row-* and 2 compare-try-* buttons, try-chatgpt routes to /journey?agent=chatgpt. Agent Activity: insights total/purchases/declined/points correct; prev/next month nav works (Oct seeded 4 purchases, Sep 2 + 1 declined), next disabled at current month; new purchase (+$49.61, +248 pts) and decline reflected. Only minor issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/insights", "issue": "Month format check accepts invalid months like 2026-13 and 2026-00 (returns 200 with empty data instead of 422). Use datetime.strptime(month, '%Y-%m')."},
+      {"endpoint": "POST /api/checkout_sessions", "issue": "Unknown top-level fields are silently ignored (e.g. a stray top-level 'quantity'); consider model_config extra='forbid' for stricter ACP contract validation."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "journey.tsx checkout()/changeTip()", "issue": "Errors from POST/PATCH checkout_sessions are stored in `error` state, but that state is not passed to ChatStep or PaymentStep, so a failed checkout or tip change fails silently. The stale error is then shown on AuthorizeStep (which does receive `error`) before the user makes any decision.", "testID": "widget-checkout-button, tip-chip-*", "priority": "MEDIUM"},
+      {"component": "InsightsCard", "issue": "When the month changes, the previous month's data stays on screen under the new month label until the fetch resolves, because `data` is not reset and there is no loading state on offset change.", "testID": "insights-month", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Insights month key", "issue": "The client builds the YYYY-MM key from local time (new Date()), but the server groups by UTC created_at. Near month boundaries a user's purchase can land in the 'wrong' month, and the 'current month' can differ from the server's.", "affected_testIDs": ["insights-month", "insights-total"]}
+    ],
+    "design_issues": [
+      {"screen": "Journey chat / Payment", "issues": ["product-add-* buttons (height 36) and tip-chip-* (height 36) have no hitSlop, so they are below the 44pt minimum touch target (cart +/- use hitSlop=4, which is OK)."]},
+      {"screen": "ChatGPT journey protocol panel step 0", "issues": ["The ACP 'Product discovery' card is tagged ['UCP','ACP'] and shows endpoint 'POST /ucp/v1/catalog/search' (src/protocols.ts:203,212). This contradicts the compare screen, which describes ACP discovery as a merchant product feed and UCP as Gemini-only. Use ACP-only tags and an ACP feed endpoint."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_multi_cart_insights.py", "/app/backend/tests/test_citi_agentic_commerce.py", "/app/test_reports/pytest/pytest_iter3.xml"],
+  "action_items": [
+    "Pass the journey `error` to ChatStep (checkout) and PaymentStep (tip) and render it; clear `error` on step change so stale errors don't appear on AuthorizeStep.",
+    "Fix the ACP step-0 protocol info in src/protocols.ts (lines ~203/212): remove the UCP tag and the /ucp endpoint for the ChatGPT journey.",
+    "Validate insights month with datetime.strptime('%Y-%m') to return 422 for 2026-13 and 2026-00.",
+    "Optional: reset InsightsCard data / show a loader on month change; add hitSlop or 44pt height to product-add-* and tip-chip-*; consider computing the month in UTC on the client to match the server."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 511 lines: OK. _id is excluded everywhere. Pydantic validation is in place (qty 1-10, items 1-10, tip 0-100).",
+    "PATCH correctly locks after authorization (400). Authorize is idempotent per session. Order prefix TGT for gemini, IC for chatgpt.",
+    "No deprecated Expo packages (expo-av / expo-barcode-scanner / expo-background-fetch) found. The safe area comes from react-native-safe-area-context insets. KeyboardAvoidingView is from react-native-keyboard-controller.",
+    "Pressables on web need roughly 1.5s of hydration time before a click registers in Playwright (force-click immediately after load did nothing). This is a test-timing note, not an app bug."
+  ],
+  "updated_files": ["/app/backend/tests/test_citi_agentic_commerce.py (migrated to the new {items:[...]} checkout payload; fixed the validation parametrization)", "/app/backend/tests/test_multi_cart_insights.py (new)"],
+  "success_rate": {"backend": "100% (48/48)", "frontend": "100% of tested flows pass; 2 minor UI bugs + 2 design notes"},
+  "seed_data_creation": "None. Created checkout_sessions/transactions were deleted by id (56 sessions, 37 txns). seed_0..seed_9 kept (10 present). Agents restored: chatgpt enabled 250, gemini enabled 150, perplexity disabled 100. Two pre-existing gemini sessions created at 21:00/21:02 (not mine) were left untouched. chat_messages from test chat sessions were not deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Container clock is Nov 2026, so the current month is 2026-11. Run pytest with the default addopts (xdist) or with -o addopts=''. Created checkout ids are appended to /tmp/created_cs_ids.txt. FaceID step needs a tap on faceid-popup. LLM replies take about 5-20s; product-add-* appears after streaming. Use normal .click() after waiting ~1.5s for hydration.",
+  "rca_of_issue": ""
+}

@@ -90,17 +90,18 @@ export function FaceIdStep({ onVerified }: { onVerified: () => void }) {
 }
 
 export function AuthorizeStep({
-  session, onDecision, busy, error,
+  agentName, protocol, session, onDecision, busy, error,
 }: {
-  session: CheckoutSession; onDecision: (d: "approve" | "decline") => void;
+  agentName: string; protocol: string; session: CheckoutSession; onDecision: (d: "approve" | "decline") => void;
   busy: "approve" | "decline" | null; error?: string | null;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const rows: [string, string][] = [
     ["Merchant", session.merchant],
-    ["Initiated by", "ChatGPT"],
-    ["You requested", session.product.short],
+    ["Initiated by", agentName],
+    ["Protocol", protocol],
+    ["You requested", session.summary],
     ["Card", `Mastercard ···· ${session.card.last4}`],
   ];
   return (
@@ -113,7 +114,7 @@ export function AuthorizeStep({
             <Ionicons name="shield-checkmark-outline" size={26} color={colors.citiBlue} />
           </View>
           <Text style={styles.authTitle}>Authorize Purchase</Text>
-          <Text style={styles.authSub}>ChatGPT is requesting permission to complete a purchase on your behalf</Text>
+          <Text style={styles.authSub}>{agentName} is requesting permission to complete a purchase on your behalf</Text>
           <View style={styles.details}>
             {rows.map(([k, v]) => (
               <View key={k} style={styles.detailRow}>
