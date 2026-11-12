@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "Citi Agentic Commerce",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,7 +38,8 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@react-native-vector-icons/ionicons"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,0 +1,54 @@
+{
+  "summary": "First full run (backend + frontend, 390x844). Backend 18/19 pytest pass, including real gpt-5.4 SSE chat that ends with a [[product:id]] tag, ACP totals (taupe = 49.61), tokenize, approve/decline, limit/disabled/revoked enforcement, all 3 payment options, and agent CRUD. The only failure is an edge case: re-authorizing a completed session overwrites it. Frontend happy path passes end to end: home -> chat (live LLM, widget) -> payment -> Face ID popup -> approve -> flex_pay -> confirmed (+276 pts, 6 x $9.21/mo) -> Activity shows the txn. Decline path, limit-decline UI, the protocol panel at every step (title + payload + close), restart, Agent Controls (toggle, limit save + toast, revoke + toast), and the Activity list/empty/error states also work. Bugs: (1) a limit over 10000 causes an uncaught '[object Object]' error that opens the redbox overlay and blocks the screen. (2) Back during the Face ID scan still jumps to Authorize. (3) Back/close buttons do nothing when the screen was opened by URL or after a refresh (GO_BACK not handled). No deprecated Expo packages found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/citi/authorize", "issue": "No status guard. Re-authorizing a completed (or declined) session overwrites the transaction: status goes back to 'approved', points_earned to 0 and payment_option to null, and a declined session can later be approved. Reject the call unless session.status is ready_for_payment or token_issued."},
+      {"endpoint": "POST /api/checkout_sessions/{id}/complete", "issue": "Not idempotent. It can be called many times on the same session, creating a new order_id each time. Return 409 if the session is already completed."},
+      {"endpoint": "POST /api/checkout_sessions", "issue": "quantity and tip have no bounds (0 or negative allowed), and agent_id is not checked against the agents collection."},
+      {"endpoint": "Transactions", "issue": "There is no delete endpoint, so transactions created by tests (about 15 rows) stay in Agent Activity and cannot be cleaned up."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Agent Controls limit input", "issue": "Entering a limit over 10000 (or any value that gets a 422) throws an uncaught Error('[object Object]') and opens the dev redbox, which blocks all further taps. Cause: saveLimit and revoke (app/agents.tsx:47-61) have no try/catch. Also, src/api.ts:48 passes err.detail to new Error(), but a 422 detail is an array, so the message becomes '[object Object]'. The invalid value also stays in the input.", "testID": "agent-limit-input-gemini", "priority": "HIGH"},
+      {"component": "FaceIdStep", "issue": "Race condition: tap faceid-popup, then journey-back-button within about 1.6s. The step goes back to PAYMENT, but the nested setTimeouts in scan() (src/components/steps/CitiSteps.tsx:34-37) still call onVerified and jump to AUTHORIZE. Store the timer ids and clear them on unmount.", "testID": "faceid-popup", "priority": "MEDIUM"},
+      {"component": "Back/close buttons", "issue": "journey-back-button (on step 0 or 4+), activity-back-button and agents-back-button call router.back(). When the screen was opened by URL or after a refresh there is no history, so you get 'GO_BACK was not handled' and the user is stuck. Use router.canGoBack() ? router.back() : router.replace('/').", "testID": "journey-back-button", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Approve -> limit decline", "issue": "decide('approve') calls /agentpay/tokenize before /citi/authorize. A token is therefore issued (session status token_issued) even when Citi then declines for the limit, but the declined screen says 'No payment token was issued'. Authorize first, then tokenize only if approved.", "affected_testIDs": ["authorize-approve-button", "declined-step"]},
+      {"flow": "Back from payment -> Checkout again", "issue": "Every tap on Checkout creates a new checkout session, so going back and forth leaves orphan ACP sessions. Reuse the session if it is for the same product.", "affected_testIDs": ["widget-checkout-button"]}
+    ],
+    "design_issues": [
+      {"screen": "Journey declined", "issues": ["The stepper marks PAY (and AUTHORIZE) with green checks even though the purchase was declined and Pay was skipped. The last dot label still reads 'CONFIRMED' while the step label says DECLINED."]},
+      {"screen": "Payment (Review order)", "issues": ["The tip chips ($2/$3.50/$5/$6.50) look tappable, but they are plain Views with no onPress, and the tip is fixed at $5."]},
+      {"screen": "Activity empty state", "issues": ["The title is centered but the subtitle is left-aligned. Add textAlign: 'center'."]},
+      {"screen": "Agent Controls", "issues": ["Revoke Access runs immediately with no confirmation. Toast setTimeout timers are not cleared, so quick repeated actions hide the newer toast early."]},
+      {"screen": "Protocol panel (chat step)", "issues": ["The UCP search payload query is hardcoded ('men's leather sandals size 12') and does not reflect what the user typed. Acceptable for a mock, but noted."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_citi_agentic_commerce.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Wrap saveLimit/revoke/toggle in try/catch with an error toast. In src/api.ts req(), turn an array detail into a readable string (e.g. detail.map(d=>d.msg).join(', ')).",
+    "Clear the FaceIdStep scan timeouts on unmount (useRef + useEffect cleanup).",
+    "Use router.canGoBack() ? router.back() : router.replace('/') for the journey, activity and agents back buttons.",
+    "Backend: guard /citi/authorize so it rejects sessions already authorized, completed or canceled, and make /complete idempotent (409 if already completed).",
+    "Call tokenize only after authorize returns approved (or update the declined copy).",
+    "Stepper: on decline, don't mark Pay as completed. Show the last step as 'Declined'.",
+    "Make the tip chips interactive or style them as not tappable."
+  ],
+  "critical_code_review_comments": [
+    "server.py: complete_checkout and citi_authorize have no state machine checks on session status.",
+    "CompleteRequest/CheckoutCreate: quantity and tip need Field(ge=...) validation.",
+    "agents.tsx: onEndEditing and onBlur both call saveLimit. On native both fire, which can send a double PATCH and show two toasts (only one PATCH was seen on web).",
+    "Good: _id is excluded everywhere, env vars are used for Mongo, the LLM key and the API URL, expo/fetch streaming works for native SSE, and no deprecated expo-av/barcode-scanner packages are used."
+  ],
+  "updated_files": ["/app/backend/tests/test_citi_agentic_commerce.py (new)"],
+  "success_rate": {"backend": "95% (18/19)", "frontend": "90% (core flows pass; 3 UI bugs)"},
+  "seed_data_creation": "No seed data. Tests created about 15 TEST checkout sessions and transactions, which can't be deleted because there is no endpoint. Agents were restored: chatgpt enabled/250, gemini enabled/150, perplexity disabled/100.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "No auth. Frontend env key is EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL). The LLM widget appears in about 5-10s. Run pytest /app/backend/tests/test_citi_agentic_commerce.py; test_reauthorize_completed_session is expected to fail until the backend guard is added. Always restore the agents after testing agent controls.",
+  "rca_of_issue": "[object Object] redbox: the FastAPI 422 detail is a list. new Error(list) stringifies to '[object Object]', and the async handler has no catch, so the rejection is unhandled and Expo dev shows the redbox overlay. Repro: /agents -> type 20000 in the Gemini limit -> blur."
+}

@@ -1,0 +1,153 @@
+{
+  "app_name": "Citi Agentic Commerce",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A polished, structured iOS-native prototype that seamlessly transitions between distinct brand environments (ChatGPT, Instacart, Citi) while maintaining premium fidelity.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111111",
+    "surfaceSecondary": "#F5F5F7",
+    "onSurfaceSecondary": "#111111",
+    "surfaceTertiary": "#E5E5EA",
+    "onSurfaceTertiary": "#333333",
+    "surfaceInverse": "#051628",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#051628",
+    "onBrand": "#FFFFFF",
+    "brandPrimary": "#051628",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#003A2B",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E8F5E9",
+    "onBrandTertiary": "#003A2B",
+    "success": "#34C759",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FF9500",
+    "onWarning": "#FFFFFF",
+    "error": "#FF3B30",
+    "onError": "#FFFFFF",
+    "info": "#007AFF",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E5EA",
+    "borderStrong": "#C7C7CC",
+    "divider": "#E5E5EA",
+    "muted": "#8E8E93"
+  },
+  "typography": {
+    "displayFontFamily": "System",
+    "textFontFamily": "System",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous iOS rhythms. Cards have at least md margin. Ensure sticky CTAs clear the safe area.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 1,
+  "navigation": "stack_only",
+  "icon_set": "Ionicons",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use on the floating protocol panel handle.",
+      "Use on bottom sheet headers.",
+      "Use on sticky CTAs and confirmation overlays."
+    ],
+    "dont's": [
+      "Do not use on main Chat bubbles.",
+      "Do not use over dense transactional data."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "DemoFlow",
+      "purpose": "A multi-step interactive prototype simulating the agentic commerce flow from chat to payment confirmation.",
+      "states": {
+        "loading": "Centered spinner while initializing agents.",
+        "empty": "N/A",
+        "error": "Error modal if a simulated API fails."
+      },
+      "layout": "Screen root uses safe area. Top: Horizontal scrolling Stepper (ChatGPT, Payment, Face ID, Authorize, Pay, Confirmed) showing green for completed and blue for active. Body: Swappable views based on step. Step 1: Chat UI with bubbles, showing a product widget card for 'Target sandals' (Image, price, 5x Points badge, dark green checkout CTA). Step 2: Instacart checkout list and a bottom sheet for 'Select payment method'. Step 3 & 4: Citi branded dark navy screens (surfaceInverse). Step 3 is a login form with Face ID modal. Step 4 is a dark navy authorization card with transaction details and Red/Blue buttons. Step 5: Instacart summary with points toggle and Pay button. Step 6: Success state. Bottom: Floating 'Protocol Panel' (expandable bottom sheet) that explains the background agentic messages for the current step."
+    },
+    {
+      "name": "AgentControls",
+      "purpose": "Dashboard for users to manage connected agents and set spending limits.",
+      "states": {
+        "loading": "Skeleton list rows.",
+        "empty": "Illustration with 'No agents connected'.",
+        "error": "Failed to load agent settings."
+      },
+      "layout": "Standard iOS list layout. Large title. List items for each agent (ChatGPT, etc.) showing status and a toggle. Below that, an input field for 'Spending Limit'. 'Revoke Access' button in red."
+    },
+    {
+      "name": "TransactionHistory",
+      "purpose": "Log of all purchases initiated by agents.",
+      "states": {
+        "loading": "Skeleton transaction rows.",
+        "empty": "Illustration with 'No agent transactions yet'.",
+        "error": "Failed to load transactions."
+      },
+      "layout": "Standard iOS list layout. Large title 'Agent Activity'. Rows displaying merchant, initiating agent (e.g., ChatGPT), amount, and status (Approved, Declined)."
+    }
+  ],
+  "images": {
+    "citi_logo": {
+      "url": "https://images.unsplash.com/photo-1684128169771-f4ff82dffbb5?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxDaXRpJTIwbG9nbyUyMHRyYW5zcGFyZW50fGVufDB8fHx8MTc5NDUxNTMyOHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Citi Logo"
+    },
+    "mastercard_logo": {
+      "url": "https://images.unsplash.com/photo-1741649416158-0e72ddcffadb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxNYXN0ZXJjYXJkJTIwbG9nbyUyMHRyYW5zcGFyZW50fGVufDB8fHx8MTc5NDUxNTMyOHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Mastercard Logo"
+    },
+    "chatgpt_logo": {
+      "url": "https://images.unsplash.com/photo-1676272682018-b1435bad1cf0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxPcGVuQUklMjBDaGF0R1BUJTIwbG9nbyUyMHRyYW5zcGFyZW50fGVufDB8fHx8MTc5NDUxNTMyOHww&ixlib=rb-4.1.0&q=85",
+      "alt": "ChatGPT Logo"
+    },
+    "target_logo": {
+      "url": "https://images.unsplash.com/photo-1615557854978-2eac0cd47b0d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxUYXJnZXQlMjBsb2dvJTIwdHJhbnNwYXJlbnR8ZW58MHx8fHwxNzk0NTE1MzI5fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Target Logo"
+    },
+    "mens_sandals": {
+      "url": "https://images.unsplash.com/photo-1585120824848-8a5cd41493d2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w8NjA3MDR8MHwxfHNlYXJjaHwxfHxtZW5zJTIwc2FuZGFsc3xlbnwwfHx8fDE3OTQ1MTUzMjh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Mens Sandals"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Build a 6-step wizard using local state or a simple navigation stack. Ensure there's a horizontal stepper at the top to indicate progress.",
+    "IMPORTANT: The Citi-specific screens (Step 3 Login and Step 4 Authorize) must use `surfaceInverse` (Dark Navy #051628) as their background color to match the prompt's explicit branding requirement. This overrides the usual ban on Navy because the brand is literally Citi.",
+    "For the ChatGPT view (Step 1), create a widget card representing the Instacart product. Include the `mens_sandals` image, pricing, a '5x Citi ThankYou Points' badge, and a dark green Checkout CTA using `brandSecondary` (#003A2B).",
+    "Include a 'Protocol Panel' bottom sheet. It should act as an educational overlay explaining the ACP/UCP/Mastercard Agent Pay protocols, updating its text dynamically based on the current step.",
+    "Implement the 'AgentControls' and 'TransactionHistory' as distinct screens accessible via a header menu or tab, simulating the user's dashboard for managing agent limits and viewing logs.",
+    "Fall back to Ionicons or vector shapes for Instacart/Mastercard/Citi logos if the provided Unsplash URLs do not read well as UI elements.",
+    "Do NOT use emoji for the UI icons. Use Ionicons.",
+    "Ensure touch targets are at least 44x44pt and safe area is respected on all screens."
+  ]
+}

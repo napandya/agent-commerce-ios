@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 2 retest at 390x844 plus backend pytest (29/29 pass). All iteration_1 fixes are verified. (1) Agent Controls: a Gemini limit of 20000 shows the toast 'Limit must be between $0 and $10,000', the input resets to 150, and there is no redbox or '[object Object]'. A valid limit (175) still saves with a toast. (2) Tapping Back during the Face ID scan stays on PAYMENT and no longer jumps to Authorize. (3) Back/close on /agents, /activity and /journey opened directly by URL goes to '/'. Backend: tokenize returns 400 before authorize and after decline. Authorize on a canceled/completed session returns the existing txn unchanged. Complete is idempotent (same order_id; payment_option and points unchanged). quantity 0/-1/21 and tip -1 return 422. Unknown agent_id returns 404. Limit 20000 returns 422. The frontend calls authorize before tokenize, and on decline it makes no tokenize call. Stepper on decline: steps 1-4 green, PAY shows '5' (not done), and the last step is labelled DECLINED with a red X. Happy-path regression passes: suggestion -> LLM widget -> checkout -> continue -> Face ID -> approve -> Flex Pay -> Confirmed (+276 pts, 6 x $9.21/mo, IC- order) -> Activity. The checkout session is reused after back/forward (only 1 POST). No deprecated Expo packages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/citi/authorize", "issue": "A session in status 'authorized' (approved, token already issued, not yet paid) can be re-authorized. With decision=decline the txn flips to declined and the session to canceled, but agent_token stays on the session. With approve it regenerates the auth_code. Suggest returning the existing txn unless status is ready_for_payment."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Authorize (Citi)", "issues": ["The screenshot taken right after the step mounted shows the card, Approve and Decline at low opacity (fade-in animation mid-way). This is probably just entrance timing, but check that the buttons are not tappable while dimmed."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_citi_agentic_commerce.py", "/app/test_reports/pytest/pytest_results_iter2.xml"],
+  "action_items": [
+    "Optional: guard /citi/authorize so it returns the existing txn when session.status == 'authorized' (not only completed/canceled)."
+  ],
+  "critical_code_review_comments": [
+    "journey.decide(): if tokenize fails after an approve, the user stays on Authorize with an error. Retrying calls authorize again, which re-authorizes (see the backend minor issue).",
+    "Transient 502s from the Metro dev server (/hot, /symbolicate, Ionicons.ttf) during direct-URL loads once showed the toast 'Failed to load font Ionicons' and icons rendered as boxes. This is an environment issue, not app code.",
+    "Good: FaceIdStep timers are stored in a ref and cleared on unmount. api.ts flattens array 422 details. Back buttons use canGoBack() ? back() : replace('/')."
+  ],
+  "updated_files": ["/app/backend/tests/test_citi_agentic_commerce.py (updated for authorize->tokenize order; added tests for tokenize-before-auth 400, idempotent complete, canceled re-auth, quantity/tip 422, unknown agent 404, limit>10000 422; tracks created IDs)"],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "100% (all retest items and the regression pass)"},
+  "seed_data_creation": "None. I deleted my own test data by ID only (19 checkout_sessions, 15 transactions). I did not use deleteMany({}) because test-data rules forbid unfiltered deletes. Not deleted because their IDs were not confirmed as mine: cs_e03d5f2c2e895efd (authorized, probably my Face ID race run) and cs_b51e40c589debe12 (completed). Chat messages from test runs remain. Agents restored: chatgpt enabled/250, gemini enabled/150, perplexity disabled/100.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "No auth. The frontend env key is EXPO_PUBLIC_BACKEND_URL. The test file appends created session IDs to /tmp/created_cs_ids.txt for cleanup by ID. The confirmed/declined buttons are view-agent-activity-button and restart-journey-button. The LLM widget appears in about 5-10s."
+}

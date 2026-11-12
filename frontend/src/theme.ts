@@ -41,48 +41,59 @@ const light = {
   // Each `on` key is the text and icon color for that background.
   // ---------------------------------------------------------------------------
   surface: "#FFFFFF", // primary canvas, most of every screen
-  onSurface: "#111827", // text and icons on the canvas
-  surfaceSecondary: "#F9FAFB", // cards, sheets, list rows
-  onSurfaceSecondary: "#374151", // text and icons on cards, sheets, rows
-  surfaceTertiary: "#F3F4F6", // input backgrounds, chips, deepest nesting
-  onSurfaceTertiary: "#4B5563", // text on inputs and chips; also muted text
-  surfaceInverse: "#1F2937", // tooltips, snackbars, anything popping against the theme
+  onSurface: "#111111", // text and icons on the canvas
+  surfaceSecondary: "#F5F5F7", // cards, sheets, list rows
+  onSurfaceSecondary: "#111111", // text and icons on cards, sheets, rows
+  surfaceTertiary: "#E5E5EA", // input backgrounds, chips, deepest nesting
+  onSurfaceTertiary: "#333333", // text on inputs and chips; also muted text
+  surfaceInverse: "#051628", // tooltips, snackbars, anything popping against the theme
   onSurfaceInverse: "#FFFFFF", // text and icons on the inverse surface
-  muted: "#6B7280", // subdued text on surface: captions, timestamps, placeholders
+  muted: "#8E8E93", // subdued text on surface: captions, timestamps, placeholders
+
+  // Citi dark environment
+  citiCard: "#0E2340",
+  citiBorder: "#1F3A5F",
+  citiMuted: "#9FB2CC",
+  citiRed: "#E31837",
+  citiBlue: "#2563EB",
+  declineFill: "#3A1A24",
+  stepActive: "#2563EB",
+  stepDone: "#1F6B3A",
+  overlay: "rgba(0,0,0,0.45)",
 
   // ---------------------------------------------------------------------------
   // Brand: the identity color and the fills built from it.
   // Neutral by default; replace with the design guidelines values.
   // ---------------------------------------------------------------------------
-  brand: "#111827", // base hue, anchor only; Primary, Secondary, Tertiary are weights of it
+  brand: "#051628", // base hue, anchor only; Primary, Secondary, Tertiary are weights of it
   onBrand: "#FFFFFF", // text and icons placed directly on brand
-  brandPrimary: "#111827", // primary CTA, active tab indicator, selected states
+  brandPrimary: "#051628", // primary CTA, active tab indicator, selected states
   onBrandPrimary: "#FFFFFF", // text and icons on brandPrimary
-  brandSecondary: "#E5E7EB", // secondary CTA, less prominent accents
-  onBrandSecondary: "#111827", // text and icons on brandSecondary
-  brandTertiary: "#F3F4F6", // chips, tags, badges, subtle brand moments
-  onBrandTertiary: "#111827", // text and icons on brandTertiary
+  brandSecondary: "#003A2B", // secondary CTA, less prominent accents
+  onBrandSecondary: "#FFFFFF", // text and icons on brandSecondary
+  brandTertiary: "#E8F5E9", // chips, tags, badges, subtle brand moments
+  onBrandTertiary: "#003A2B", // text and icons on brandTertiary
 
   // ---------------------------------------------------------------------------
   // Status: semantic only, never decorative. Fill for badges, banners and
   // toasts; the `on` key is text on that fill. The plain key is also safe as
   // text on `surface`.
   // ---------------------------------------------------------------------------
-  success: "#15803D",
+  success: "#34C759",
   onSuccess: "#FFFFFF",
-  warning: "#B45309",
+  warning: "#FF9500",
   onWarning: "#FFFFFF",
-  error: "#B91C1C",
+  error: "#FF3B30",
   onError: "#FFFFFF",
-  info: "#1D4ED8",
+  info: "#007AFF",
   onInfo: "#FFFFFF",
 
   // ---------------------------------------------------------------------------
   // Lines
   // ---------------------------------------------------------------------------
-  border: "#E5E7EB", // hairline outline, 0.5pt or 1pt max: inputs, cards
-  borderStrong: "#D1D5DB", // focus rings, selected outlines, 1.5pt max
-  divider: "#E5E7EB", // subtle list separators
+  border: "#E5E5EA", // hairline outline, 0.5pt or 1pt max: inputs, cards
+  borderStrong: "#C7C7CC", // focus rings, selected outlines, 1.5pt max
+  divider: "#E5E5EA", // subtle list separators
 };
 
 export type ThemeColors = typeof light;
