@@ -57,7 +57,7 @@ export default function Home() {
               </View>
               <View style={styles.flex}>
                 <Text style={styles.startTitle}>ChatGPT journey · ACP</Text>
-                <Text style={styles.startSub}>ChatGPT → Target → Apple Pay → Citi</Text>
+                <Text style={styles.startSub}>ChatGPT → Walmart → Apple Pay → Citi</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
             </Pressable>

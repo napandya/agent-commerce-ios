@@ -53,7 +53,7 @@ def now_iso() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Mock catalog (Target product feed via ACP / UCP)
+# Mock catalogs (Walmart feed via ACP for ChatGPT, Target via UCP for Gemini)
 # ---------------------------------------------------------------------------
 PRODUCTS = {
     "gf-saul-taupe": {
@@ -106,11 +106,51 @@ PRODUCTS = {
         "image": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
         "retailer": "Target",
     },
+    "wm-george-sandal-brown": {
+        "id": "wm-george-sandal-brown",
+        "name": "George Men's Faux Leather Two Band Sandals",
+        "variant": "Size 12 — Brown",
+        "short": "Size 12 Sandals",
+        "price": 19.98,
+        "compare_at": 24.98,
+        "image": "https://images.unsplash.com/photo-1585120824848-8a5cd41493d2?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Walmart",
+    },
+    "wm-george-slide-black": {
+        "id": "wm-george-slide-black",
+        "name": "George Men's Comfort Slide Sandals",
+        "variant": "Size 12 — Black",
+        "short": "Size 12 Slides",
+        "price": 14.97,
+        "compare_at": 17.97,
+        "image": "https://images.unsplash.com/photo-1603487742131-4160ec999306?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Walmart",
+    },
+    "wm-aw-socks-6pk": {
+        "id": "wm-aw-socks-6pk",
+        "name": "Athletic Works Men's Low Cut Socks 6pk",
+        "variant": "Size 6-12 — White",
+        "short": "Low Cut Socks 6pk",
+        "price": 9.97,
+        "compare_at": 11.97,
+        "image": "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Walmart",
+    },
+    "wm-george-swim-blue": {
+        "id": "wm-george-swim-blue",
+        "name": "George Men's 7\" Swim Trunks",
+        "variant": "Size L — Blue",
+        "short": "Swim Trunks",
+        "price": 12.98,
+        "compare_at": 15.98,
+        "image": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
+        "retailer": "Walmart",
+    },
 }
 
 AGENT_JOURNEYS = {
-    "chatgpt": {"name": "ChatGPT", "app": "Target's ACP checkout inside ChatGPT (paid with Apple Pay)", "merchant": "Target",
-                "protocol": "ACP 2025-09-29", "widget": "Target cart", "wallet": "Apple Pay"},
+    "chatgpt": {"name": "ChatGPT", "app": "Walmart's ACP checkout inside ChatGPT (paid with Apple Pay)", "merchant": "Walmart",
+                "protocol": "ACP 2025-09-29", "widget": "Walmart cart", "wallet": "Apple Pay"},
     "gemini": {"name": "Gemini", "app": "Target's UCP checkout inside Gemini (paid with Google Pay)", "merchant": "Target",
                "protocol": "UCP 2026-01 + AP2", "widget": "Target cart", "wallet": "Google Pay"},
 }
@@ -126,16 +166,17 @@ DEFAULT_AGENTS = [
     {"id": "perplexity", "name": "Perplexity", "provider": "Perplexity AI", "protocol": "Agent Pay", "enabled": False, "limit": 100.0},
 ]
 
-CATALOG_JSON = json.dumps([{k: p[k] for k in ("id", "name", "variant", "price")} for p in PRODUCTS.values()])
+def catalog_json(retailer: str) -> str:
+    return json.dumps([{k: p[k] for k in ("id", "name", "variant", "price")} for p in PRODUCTS.values() if p["retailer"] == retailer])
 
 
 def system_prompt(agent_id: str, cart: list) -> str:
     j = AGENT_JOURNEYS.get(agent_id, AGENT_JOURNEYS["chatgpt"])
     cart_txt = ", ".join(f"{c.quantity}x {c.product_id}" for c in cart) or "empty"
-    return f"""You are {j['name']} using {j['app']} to help a Citi cardholder shop at Target.
+    return f"""You are {j['name']} using {j['app']} to help a Citi cardholder shop at {j['merchant']}.
 Be concise (2-4 short sentences), friendly, and practical.
-Available products (only these are in stock, delivering to 10848 South Bell Avenue, Chicago):
-{CATALOG_JSON}
+Available {j['merchant']} products (only these are in stock, delivering to 10848 South Bell Avenue, Chicago):
+{catalog_json(j['merchant'])}
 Current cart: {cart_txt}
 Rules:
 - When recommending products, put one tag per product on its own final lines: [[product:<id>]] (max 3).
@@ -189,12 +230,12 @@ class AgentUpdate(BaseModel):
     limit: Optional[float] = Field(default=None, ge=0, le=10000)
 
 
-def build_lines(items: List[LineItemIn]) -> list:
+def build_lines(items: List[LineItemIn], retailer: str) -> list:
     lines = []
     for it in items:
         p = PRODUCTS.get(it.product_id)
-        if not p:
-            raise HTTPException(404, f"Product not found: {it.product_id}")
+        if not p or p["retailer"] != retailer:
+            raise HTTPException(404, f"Product not found at {retailer}: {it.product_id}")
         lines.append({"product": p, "quantity": it.quantity, "line_total": round(p["price"] * it.quantity, 2)})
     return lines
 
@@ -285,7 +326,7 @@ async def create_checkout(body: CheckoutCreate):
     journey = AGENT_JOURNEYS.get(body.agent_id)
     if not journey or not await db.agents.find_one({"id": body.agent_id}):
         raise HTTPException(404, "Agent not found")
-    lines = build_lines(body.items)
+    lines = build_lines(body.items, journey["merchant"])
     sid = f"cs_{secrets.token_hex(8)}"
     session = {
         "id": sid, "status": "ready_for_payment", "protocol": journey["protocol"],
@@ -309,7 +350,7 @@ async def update_checkout(sid: str, body: CheckoutUpdate):
     s = await get_session(sid)
     if s["status"] != "ready_for_payment":
         raise HTTPException(400, "Checkout is locked after Citi authorization")
-    lines = build_lines(body.items) if body.items else s["line_items"]
+    lines = build_lines(body.items, s["merchant"]) if body.items else s["line_items"]
     tip = body.tip if body.tip is not None else s["totals"]["tip"]
     upd = {"line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, tip)}
     await db.checkout_sessions.update_one({"id": sid}, {"$set": upd})
@@ -409,11 +450,11 @@ SEED_TXNS = [
     (0, 2, "gemini", "Target", "Beach Towel Set", 32.40, "completed", None),
     (0, 5, "chatgpt", "DoorDash", "Dinner order", 41.18, "completed", None),
     (0, 8, "gemini", "Best Buy", "USB-C Charger", 58.99, "declined", "Declined by cardholder"),
-    (1, 3, "chatgpt", "Target", "Weekly groceries", 86.42, "completed", None),
+    (1, 3, "chatgpt", "Walmart", "Weekly groceries", 86.42, "completed", None),
     (1, 12, "gemini", "Walmart", "Kitchen essentials", 54.10, "completed", None),
     (1, 19, "perplexity", "Best Buy", "Wireless earbuds", 79.99, "completed", None),
     (1, 25, "chatgpt", "Etsy", "Custom mug", 24.00, "completed", None),
-    (2, 6, "chatgpt", "Target", "Party supplies", 63.75, "completed", None),
+    (2, 6, "chatgpt", "Walmart", "Party supplies", 63.75, "completed", None),
     (2, 14, "gemini", "Target", "Running socks", 18.50, "completed", None),
     (2, 22, "perplexity", "Expedia", "Hotel deposit", 120.00, "declined", "Exceeds $100.00 agent spending limit"),
 ]

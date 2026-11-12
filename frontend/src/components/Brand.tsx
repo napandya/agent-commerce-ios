@@ -51,6 +51,18 @@ export function WalletMark({ wallet, size = 16 }: { wallet: "apple" | "google"; 
   );
 }
 
+export function WalmartLogo({ size = 34 }: { size?: number }) {
+  return (
+    <View style={[sx.walmart, { width: size, height: size, borderRadius: 6 }]} testID="walmart-logo">
+      <Ionicons name="sunny" size={size * 0.7} color="#FFC220" />
+    </View>
+  );
+}
+
+export function StoreLogo({ store, size = 34 }: { store: "walmart" | "target"; size?: number }) {
+  return store === "walmart" ? <WalmartLogo size={size} /> : <TargetLogo size={size} />;
+}
+
 export function TargetLogo({ size = 34 }: { size?: number }) {
   return (
     <View style={[sx.target, { width: size, height: size, borderRadius: 6 }]}>
@@ -69,6 +81,7 @@ const sx = StyleSheet.create({
   carrot: { width: 8, height: 12, borderRadius: 4, backgroundColor: "#FF7009" },
   ic: { fontSize: 15, fontWeight: "700", color: "#003A2B" },
   target: { backgroundColor: "#CC0000", alignItems: "center", justifyContent: "center" },
+  walmart: { backgroundColor: "#0071DC", alignItems: "center", justifyContent: "center" },
   ring: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
 });
 

@@ -53,13 +53,13 @@ export const stepLabels = (agentName: string) => [agentName, ...STEPS.slice(1)];
 export const COMPARISON: { stage: string; acp: string; ucp: string; agentPay: string }[] = [
   {
     stage: "Discovery",
-    acp: "Merchant product feed shown as a Target checkout widget inside ChatGPT; Apple Pay on iOS.",
+    acp: "Merchant product feed shown as a Walmart checkout widget inside ChatGPT; Apple Pay on iOS.",
     ucp: "Agent calls the merchant's UCP catalog capability directly (Target).",
     agentPay: "Not involved.",
   },
   {
     stage: "Cart & checkout",
-    acp: "POST /checkout_sessions, then update for items & tip. Merchant of record: Target.",
+    acp: "POST /checkout_sessions, then update for items & tip. Merchant of record: Walmart.",
     ucp: "UCP checkout-session capability; cart negotiated against Target's UCP profile.",
     agentPay: "Card enrolled once as a tokenized credential.",
   },
@@ -202,17 +202,17 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
       return {
         tags: ["ACP"],
         title: "Product discovery",
-        summary: "ChatGPT reads Target's ACP product feed, then renders a Target checkout widget inside the chat with Apple Pay as the payment method.",
-        flow: ["You", "ChatGPT", "Target feed"],
+        summary: "ChatGPT reads Walmart's ACP product feed, then renders a Walmart checkout widget inside the chat with Apple Pay as the payment method.",
+        flow: ["You", "ChatGPT", "Walmart feed"],
         points: [
           "ACP product feed: merchant-supplied catalog indexed by ChatGPT",
           "Feed supplies price, availability and fees",
           "Citi card benefit (5x points) is surfaced before checkout",
         ],
-        endpoint: "GET /acp/product_feed?merchant=target.com",
+        endpoint: "GET /acp/product_feed?merchant=walmart.com",
         payload: {
           query: "men's leather sandals size 12",
-          merchant: "target.com",
+          merchant: "walmart.com",
           filters: { size: "12", in_stock: true },
           context: { delivery_zip: "60643", agent: "chatgpt" },
         },
@@ -221,12 +221,12 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
       return {
         tags: ["ACP", "Apple Pay", "Agent Pay"],
         title: "Create checkout session",
-        summary: "The agent opens an ACP checkout session with Target. The Apple Pay sheet offers your Citi Mastercard ending 4680 as a device token — the card number is never shared with ChatGPT or Target.",
-        flow: ["ChatGPT", "Target", "Apple Pay", "Mastercard"],
+        summary: "The agent opens an ACP checkout session with Walmart. The Apple Pay sheet offers your Citi Mastercard ending 4680 as a device token — the card number is never shared with ChatGPT or Walmart.",
+        flow: ["ChatGPT", "Walmart", "Apple Pay", "Mastercard"],
         points: [
           "ACP: POST /checkout_sessions returns line items & totals",
           "Apple Pay: Citi card provisioned as a device-specific token (DPAN)",
-          "Target stays merchant-of-record",
+          "Walmart stays merchant-of-record",
         ],
         endpoint: "POST /acp/checkout_sessions",
         payload: s
@@ -262,13 +262,13 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
       };
     case 3:
       return {
-        tags: ["Agent Pay", "UCP · AP2"],
-        title: "Issuer authorization & mandate",
+        tags: ["Agent Pay"],
+        title: "Issuer authorization",
         summary: "Citi shows the full purchase context — merchant, agent, item, amount. Approving signs an intent mandate and issues a single-use Mastercard agentic token scoped to this purchase.",
         flow: ["Citi", "Mastercard", "Agentic token", "ChatGPT"],
         points: [
           "Token bound to agent + merchant + max amount",
-          "AP2 Cart Mandate: signed proof of what you approved",
+          "Citi records your approval for this exact cart & amount",
           "Agent spending limits from Agent Controls are enforced",
         ],
         endpoint: "POST /mastercard/agentpay/tokens",
@@ -276,7 +276,7 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
           agent_id: s?.agent_id ?? "chatgpt",
           mandate: {
             type: "CartMandate",
-            merchant: s?.merchant ?? "Target",
+            merchant: s?.merchant ?? "Walmart",
             items: [s?.summary ?? "Size 12 Sandals"],
             amount: { value: total, currency: "USD" },
             user_authorization: "pending",
@@ -287,8 +287,8 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
       return {
         tags: ["ACP", "Apple Pay", "Agent Pay"],
         title: "Complete checkout",
-        summary: "You confirm in the Apple Pay sheet. ChatGPT completes the ACP session with Target using the Apple Pay token plus the Agent Pay cryptogram; the authorization travels the Mastercard network flagged as agent-initiated.",
-        flow: ["Apple Pay", "ChatGPT", "Target", "Mastercard", "Citi"],
+        summary: "You confirm in the Apple Pay sheet. ChatGPT completes the ACP session with Walmart using the Apple Pay token plus the Agent Pay cryptogram; the authorization travels the Mastercard network flagged as agent-initiated.",
+        flow: ["Apple Pay", "ChatGPT", "Walmart", "Mastercard", "Citi"],
         points: [
           "ACP: POST /checkout_sessions/{id}/complete",
           "Apple Pay payment token + agent indicator & cryptogram",
@@ -312,7 +312,7 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
             tags: ["ACP", "Agent Pay"],
             title: "Session canceled",
             summary: "Citi declined the agent request. No token was issued, the ACP checkout session is canceled, and ChatGPT is notified so it can tell you.",
-            flow: ["Citi", "Mastercard", "Target", "ChatGPT"],
+            flow: ["Citi", "Mastercard", "Walmart", "ChatGPT"],
             points: ["No card data or token exposed", "Decline reason returned to agent", "Logged in Agent Activity"],
             endpoint: "POST /acp/checkout_sessions/{id}/cancel",
             payload: { id: s?.id, status: "canceled", reason: ctx.txn?.reason ?? "declined" },
@@ -320,8 +320,8 @@ function acpProtocol(step: number, ctx: ProtocolCtx): ProtocolInfo {
         : {
             tags: ["ACP"],
             title: "Order confirmed",
-            summary: "Target emits an ACP order webhook to ChatGPT; Citi posts the Apple Pay transaction with the agent shown as initiator.",
-            flow: ["Target", "ChatGPT", "Citi"],
+            summary: "Walmart emits an ACP order webhook to ChatGPT; Citi posts the Apple Pay transaction with the agent shown as initiator.",
+            flow: ["Walmart", "ChatGPT", "Citi"],
             points: ["ACP webhook: order.created", "Points posted to ThankYou account", "Visible in Agent Activity"],
             endpoint: "WEBHOOK order.created",
             payload: { type: "order.created", data: ctx.order ?? {} },

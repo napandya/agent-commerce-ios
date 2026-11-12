@@ -4,7 +4,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, type CheckoutSession, type PaymentOption } from "@/src/api";
-import { CitiLogo, MastercardLogo, TargetLogo, WalletMark } from "@/src/components/Brand";
+import { CitiLogo, MastercardLogo, WalletMark } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
 
 const TIPS = [2, 3.5, 5, 6.5];
@@ -157,13 +157,13 @@ export function PaymentStep({
           <View style={styles.listRow}>
             <Ionicons name="storefront-outline" size={18} color={colors.muted} />
             <View style={styles.flex}>
-              <Text style={styles.small}>Pay Target</Text>
+              <Text style={styles.small}>Pay {agent.storeLabel}</Text>
               <Text style={styles.rowTitle} testID="payment-total">{money(session.totals.total)}</Text>
             </View>
           </View>
         </View>
         <Text style={styles.legal}>
-          {agent.walletName} shares a device token, not your card number, with {agent.name} and Target.
+          {agent.walletName} shares a device token, not your card number, with {agent.name} and {agent.storeLabel}.
         </Text>
         <WalletButton agent={agent} label="Continue" onPress={onContinue} testID="payment-continue-button" />
       </Animated.View>
@@ -224,7 +224,7 @@ export function PayStep({
           testID="pay-wallet-button"
         />
         <Text style={styles.legal}>
-          {agent.walletName} sends your Citi card token to Target. {agent.id === "gemini" ? "Google" : "OpenAI"} does not collect payment or handle fulfillment.
+          {agent.walletName} sends your Citi card token to {agent.storeLabel}. {agent.id === "gemini" ? "Google" : "OpenAI"} does not collect payment or handle fulfillment.
         </Text>
       </Animated.View>
     </View>

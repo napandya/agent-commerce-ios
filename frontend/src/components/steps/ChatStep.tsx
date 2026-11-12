@@ -5,7 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, streamChat, type Product } from "@/src/api";
-import { TargetLogo, WalletMark } from "@/src/components/Brand";
+import { StoreLogo, WalletMark } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
 
 export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productIds?: string[]; error?: boolean };
@@ -87,7 +87,7 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
             <Text style={styles.emptySub}>
               {gemini
                 ? "Gemini can check out directly with Target using UCP and Google Pay."
-                : "Target is connected. Ask ChatGPT to find something and pay with Apple Pay."}
+                : "Walmart is connected. Ask ChatGPT to find something and pay with Apple Pay."}
             </Text>
             {agent.suggestions.map((s, i) => (
               <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.suggestion} onPress={() => send(s)}>
@@ -123,7 +123,7 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
       </ScrollView>
       <View style={styles.composer}>
         <View style={styles.chip}>
-          <View style={styles.chipRow}><TargetLogo size={14} /><Text style={styles.chipText}>Target</Text></View>
+          <View style={styles.chipRow}><StoreLogo store={agent.store} size={14} /><Text style={styles.chipText}>{agent.storeLabel}</Text></View>
         </View>
         <View style={styles.inputRow}>
           <TextInput
@@ -185,8 +185,8 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
     <Animated.View entering={FadeInUp.duration(260)} style={styles.widget} testID="cart-widget">
       <View style={styles.wHead}>
         <View style={styles.chipRow}>
-          <TargetLogo size={20} />
-          <Text style={styles.wTitle}>Target</Text>
+          <StoreLogo store={agent.store} size={20} />
+          <Text style={styles.wTitle}>{agent.storeLabel}</Text>
           <Text style={[styles.ucpBadge, !gemini && styles.acpBadge]}>{gemini ? "UCP" : "ACP"} checkout</Text>
         </View>
         <Text style={styles.wFee} testID="cart-count">{count} item{count === 1 ? "" : "s"}</Text>
