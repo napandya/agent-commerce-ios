@@ -6,7 +6,8 @@ export type AgentConfig = {
   protocol: string;
   tags: string[];
   merchant: string;
-  store: "instacart" | "target";
+  wallet: "apple" | "google";
+  walletName: string;
   storeLabel: string;
   subtitle: string;
   suggestions: string[];
@@ -18,10 +19,11 @@ export const AGENT_CONFIG: Record<AgentId, AgentConfig> = {
     name: "ChatGPT",
     protocol: "ACP",
     tags: ["ACP", "Agent Pay"],
-    merchant: "Target via Instacart",
-    store: "instacart",
-    storeLabel: "Instacart",
-    subtitle: "ChatGPT → Instacart → Citi",
+    merchant: "Target",
+    wallet: "apple",
+    walletName: "Apple Pay",
+    storeLabel: "Target",
+    subtitle: "ChatGPT → Target → Apple Pay → Citi",
     suggestions: [
       "Find me men's leather sandals in size 12 at Target",
       "Sandals and socks for a beach trip, size 12",
@@ -34,9 +36,10 @@ export const AGENT_CONFIG: Record<AgentId, AgentConfig> = {
     protocol: "UCP + AP2",
     tags: ["UCP", "AP2", "Agent Pay"],
     merchant: "Target",
-    store: "target",
+    wallet: "google",
+    walletName: "Google Pay",
     storeLabel: "Target",
-    subtitle: "Gemini → Target (UCP) → Citi",
+    subtitle: "Gemini → Target (UCP) → Google Pay → Citi",
     suggestions: [
       "Help me pack for the beach — sandals and swim shorts",
       "Find size 12 sandals in black at Target",

@@ -198,6 +198,7 @@ export default function Journey() {
           {step === 5 && session && (
             <ConfirmedStep
               agentName={agent.name}
+              walletName={agent.walletName}
               session={session}
               order={order}
               txn={txn}

@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import { makeStyles } from "@/src/theme";
 
 // Brand marks keep identical colors in every theme.
@@ -35,6 +36,21 @@ export function InstacartMark({ label = "Instacart", dark = false }: { label?: s
   );
 }
 
+// Wallet marks use fixed brand colors in every theme.
+export function WalletMark({ wallet, size = 16 }: { wallet: "apple" | "google"; size?: number }) {
+  return wallet === "apple" ? (
+    <View style={[sx.wallet, { backgroundColor: "#000000" }]} testID="apple-pay-mark">
+      <Ionicons name="logo-apple" size={size} color="#FFFFFF" />
+      <Text style={[sx.walletText, { color: "#FFFFFF", fontSize: size }]}>Pay</Text>
+    </View>
+  ) : (
+    <View style={[sx.wallet, sx.walletGoogle]} testID="google-pay-mark">
+      <Ionicons name="logo-google" size={size - 2} color="#4285F4" />
+      <Text style={[sx.walletText, { color: "#3C4043", fontSize: size }]}>Pay</Text>
+    </View>
+  );
+}
+
 export function TargetLogo({ size = 34 }: { size?: number }) {
   return (
     <View style={[sx.target, { width: size, height: size, borderRadius: 6 }]}>
@@ -46,6 +62,9 @@ export function TargetLogo({ size = 34 }: { size?: number }) {
 }
 
 const sx = StyleSheet.create({
+  wallet: { flexDirection: "row", alignItems: "center", gap: 2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  walletGoogle: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DADCE0" },
+  walletText: { fontWeight: "600" },
   row: { flexDirection: "row", alignItems: "center", gap: 6 },
   carrot: { width: 8, height: 12, borderRadius: 4, backgroundColor: "#FF7009" },
   ic: { fontSize: 15, fontWeight: "700", color: "#003A2B" },

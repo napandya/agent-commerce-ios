@@ -4,12 +4,12 @@ import Animated, { FadeInUp, ZoomIn } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, type CheckoutSession, type Order, type Txn } from "@/src/api";
 
-const OPTION_LABEL = { card: "Mastercard ···· 4680", flex_pay: "Citi Flex Pay", points: "Citi ThankYou® Points" };
+const OPTION_LABEL = { card: "Citi Mastercard ···· 4680", flex_pay: "Citi Flex Pay", points: "Citi ThankYou® Points" };
 
 export function ConfirmedStep({
-  agentName, session, order, txn, declined, onActivity, onRestart,
+  agentName, walletName, session, order, txn, declined, onActivity, onRestart,
 }: {
-  agentName: string; session: CheckoutSession; order: Order | null; txn: Txn | null; declined: boolean;
+  agentName: string; walletName: string; session: CheckoutSession; order: Order | null; txn: Txn | null; declined: boolean;
   onActivity: () => void; onRestart: () => void;
 }) {
   const styles = useStyles();
@@ -25,7 +25,7 @@ export function ConfirmedStep({
         ["Order", order?.order_id ?? "—"],
         ...session.line_items.map((l) => [`${l.quantity}×`, `${l.product.name} (${l.product.variant})`] as [string, string]),
         ["Tip", money(session.totals.tip)],
-        ["Paid with", order ? OPTION_LABEL[order.payment_option] : "—"],
+        ["Paid with", order ? `${walletName} · ${OPTION_LABEL[order.payment_option]}` : "—"],
         ...(order?.flex_monthly ? [["Flex Pay", `6 × ${money(order.flex_monthly)}/mo`] as [string, string]] : []),
         ["Total", money(session.totals.total)],
         ["Delivery", order?.eta ?? "Delivery by 11:45am"],

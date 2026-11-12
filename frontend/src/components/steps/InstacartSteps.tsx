@@ -4,17 +4,50 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, type CheckoutSession, type PaymentOption } from "@/src/api";
-import { InstacartMark, MastercardLogo, TargetLogo } from "@/src/components/Brand";
+import { CitiLogo, MastercardLogo, TargetLogo, WalletMark } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
 
 const TIPS = [2, 3.5, 5, 6.5];
 
-function StoreMark({ agent }: { agent: AgentConfig }) {
+function CardArt() {
   const styles = useStyles();
-  return agent.store === "instacart" ? (
-    <InstacartMark />
-  ) : (
-    <View style={styles.storeRow}><TargetLogo size={18} /><Text style={styles.sheetTitle}>Target</Text></View>
+  return (
+    <View style={styles.cardArt}>
+      <CitiLogo size={11} />
+      <View style={styles.cardArtMc}><MastercardLogo size={8} /></View>
+    </View>
+  );
+}
+
+function WalletButton({ agent, label, onPress, loading, testID }: {
+  agent: AgentConfig; label: string; onPress: () => void; loading?: boolean; testID: string;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const apple = agent.wallet === "apple";
+  return (
+    <Pressable testID={testID} style={[styles.cta, apple ? styles.ctaApple : styles.ctaGoogle]} onPress={onPress} disabled={loading}>
+      {loading ? (
+        <ActivityIndicator color={colors.onBrandPrimary} />
+      ) : (
+        <View style={styles.storeRow}>
+          <Ionicons name={apple ? "logo-apple" : "logo-google"} size={18} color={colors.onBrandPrimary} />
+          <Text style={styles.ctaText}>{label}</Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function SheetHead({ agent, title }: { agent: AgentConfig; title: string }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  return (
+    <View style={styles.sheetHead}>
+      <WalletMark wallet={agent.wallet} size={18} />
+      <Text style={styles.sheetTitle}>{title}</Text>
+      <View style={styles.closeCircle}><Ionicons name="close" size={14} color={colors.muted} /></View>
+    </View>
   );
 }
 
@@ -102,30 +135,37 @@ export function PaymentStep({
       <ReviewOrder session={session} onTip={onTip} tipping={tipping} />
       <Animated.View entering={SlideInDown.duration(320)} style={styles.sheet}>
         <View style={styles.handle} />
-        <View style={styles.sheetHead}>
-          <StoreMark agent={agent} />
-          <Text style={styles.sheetTitle}>Select payment method</Text>
-          <Text style={styles.headTotal} testID="payment-total">{money(session.totals.total)}</Text>
-        </View>
-        <Text style={styles.small}>New payment method</Text>
+        <SheetHead agent={agent} title="Choose a card" />
         <View style={styles.list}>
           <Pressable testID="payment-citi-card-row" style={styles.listRow} onPress={onContinue}>
-            <MastercardLogo />
+            <CardArt />
             <View style={styles.flex}>
-              <Text style={styles.rowTitle}>Add your card</Text>
-              <Text style={styles.small}>Citi MasterCard ending in {session.card.last4}</Text>
+              <Text style={styles.rowTitle}>Citi Custom Cash® Card</Text>
+              <Text style={styles.small}>Mastercard ···· {session.card.last4} · 5x ThankYou® Points</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            <Ionicons name="checkmark-circle" size={22} color={colors.stepActive} />
           </Pressable>
           <View style={styles.divider} />
           <View style={styles.listRow}>
-            <Text style={[styles.rowTitle, styles.flex]}>Manual Card Enrollment</Text>
-            <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            <Ionicons name="location-outline" size={18} color={colors.muted} />
+            <View style={styles.flex}>
+              <Text style={styles.small}>Ship to</Text>
+              <Text style={styles.rowTitle}>10848 South Bell Avenue, Chicago</Text>
+            </View>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.listRow}>
+            <Ionicons name="storefront-outline" size={18} color={colors.muted} />
+            <View style={styles.flex}>
+              <Text style={styles.small}>Pay Target</Text>
+              <Text style={styles.rowTitle} testID="payment-total">{money(session.totals.total)}</Text>
+            </View>
           </View>
         </View>
-        <Pressable testID="payment-continue-button" style={styles.cta} onPress={onContinue}>
-          <Text style={styles.ctaText}>Continue</Text>
-        </Pressable>
+        <Text style={styles.legal}>
+          {agent.walletName} shares a device token, not your card number, with {agent.name} and Target.
+        </Text>
+        <WalletButton agent={agent} label="Continue" onPress={onContinue} testID="payment-continue-button" />
       </Animated.View>
     </View>
   );
@@ -147,14 +187,11 @@ export function PayStep({
       <ReviewOrder session={session} dim />
       <Animated.View entering={SlideInDown.duration(320)} style={styles.sheet}>
         <View style={styles.handle} />
-        <View style={styles.sheetHead}>
-          <View style={styles.w24} />
-          <StoreMark agent={agent} />
-          <Ionicons name="close" size={20} color={colors.muted} />
-        </View>
+        <SheetHead agent={agent} title={`Pay ${agent.storeLabel}`} />
+        <Text style={styles.small}>Citi offers in {agent.walletName}</Text>
         <View style={styles.list}>
           <Pressable testID="pay-option-card" style={styles.listRow} onPress={() => setOption("card")}>
-            <MastercardLogo />
+            <CardArt />
             <View style={styles.flex}>
               <Text style={styles.rowTitle}>Mastercard ···· {session.card.last4}</Text>
               <Text style={styles.small}>5x Citi ThankYou® Points with {agent.storeLabel}</Text>
@@ -179,11 +216,15 @@ export function PayStep({
           <Text style={styles.total} testID="pay-total">{money(total)}</Text>
         </View>
         {error ? <Text style={styles.error} testID="pay-error">{error}</Text> : null}
-        <Pressable testID="pay-instacart-button" style={styles.cta} onPress={() => onPay(option)} disabled={paying}>
-          {paying ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.ctaText}>Pay {agent.storeLabel}</Text>}
-        </Pressable>
+        <WalletButton
+          agent={agent}
+          label={agent.wallet === "apple" ? "Pay with Apple Pay" : "Pay with Google Pay"}
+          onPress={() => onPay(option)}
+          loading={paying}
+          testID="pay-wallet-button"
+        />
         <Text style={styles.legal}>
-          By continuing, you agree to {agent.storeLabel}'s terms and privacy policy. {agent.id === "gemini" ? "Google" : "OpenAI"} does not process your order, collect payment, or handle fulfillment.
+          {agent.walletName} sends your Citi card token to Target. {agent.id === "gemini" ? "Google" : "OpenAI"} does not collect payment or handle fulfillment.
         </Text>
       </Animated.View>
     </View>
@@ -198,6 +239,10 @@ const useStyles = makeStyles((c) => ({
   dim: { opacity: 0.45 },
   reviewContent: { padding: 16, gap: 4, paddingBottom: 340 },
   storeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardArt: { width: 44, height: 28, borderRadius: 4, backgroundColor: c.citiCard, alignItems: "center", justifyContent: "center" },
+  cardArtMc: { position: "absolute", right: 3, bottom: 2 },
+  ctaApple: { backgroundColor: "#000000" },
+  ctaGoogle: { backgroundColor: c.geminiBlue },
   headTotal: { fontSize: 14, fontWeight: "700", color: c.onSurface },
   tipOff: { opacity: 0.4 },
   tipText: { fontSize: 13, color: c.onSurface, fontWeight: "600" },

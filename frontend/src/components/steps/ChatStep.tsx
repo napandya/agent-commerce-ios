@@ -5,7 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, streamChat, type Product } from "@/src/api";
-import { InstacartMark, TargetLogo } from "@/src/components/Brand";
+import { TargetLogo, WalletMark } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
 
 export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productIds?: string[]; error?: boolean };
@@ -85,7 +85,9 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>{gemini ? "Hello, Pat. What should we shop for?" : "What are you shopping for?"}</Text>
             <Text style={styles.emptySub}>
-              {gemini ? "Gemini can check out directly with Target using UCP." : "Instacart is connected. Ask ChatGPT to find something at Target."}
+              {gemini
+                ? "Gemini can check out directly with Target using UCP and Google Pay."
+                : "Target is connected. Ask ChatGPT to find something and pay with Apple Pay."}
             </Text>
             {agent.suggestions.map((s, i) => (
               <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.suggestion} onPress={() => send(s)}>
@@ -121,11 +123,7 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
       </ScrollView>
       <View style={styles.composer}>
         <View style={styles.chip}>
-          {gemini ? (
-            <View style={styles.chipRow}><TargetLogo size={14} /><Text style={styles.chipText}>Target</Text></View>
-          ) : (
-            <InstacartMark label="Instacart" />
-          )}
+          <View style={styles.chipRow}><TargetLogo size={14} /><Text style={styles.chipText}>Target</Text></View>
         </View>
         <View style={styles.inputRow}>
           <TextInput
@@ -186,26 +184,17 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
   return (
     <Animated.View entering={FadeInUp.duration(260)} style={styles.widget} testID="cart-widget">
       <View style={styles.wHead}>
-        {gemini ? (
-          <View style={styles.chipRow}>
-            <TargetLogo size={20} />
-            <Text style={styles.wTitle}>Target</Text>
-            <Text style={styles.ucpBadge}>UCP checkout</Text>
-          </View>
-        ) : (
-          <InstacartMark />
-        )}
+        <View style={styles.chipRow}>
+          <TargetLogo size={20} />
+          <Text style={styles.wTitle}>Target</Text>
+          <Text style={[styles.ucpBadge, !gemini && styles.acpBadge]}>{gemini ? "UCP" : "ACP"} checkout</Text>
+        </View>
         <Text style={styles.wFee} testID="cart-count">{count} item{count === 1 ? "" : "s"}</Text>
       </View>
-      {!gemini && (
-        <View style={styles.wRow}>
-          <TargetLogo size={30} />
-          <View style={styles.flex}>
-            <Text style={styles.wFee}>4% service fee ($2.50 min.)</Text>
-            <Text style={styles.wFee}>$0.15 per bag fee</Text>
-          </View>
-        </View>
-      )}
+      <View style={styles.wRow}>
+        <WalletMark wallet={agent.wallet} size={14} />
+        <Text style={[styles.wFee, styles.flex]}>Pay with {agent.walletName} using your Citi Mastercard ···· 4680</Text>
+      </View>
       <View style={styles.points} testID="widget-points-banner">
         <Ionicons name="star" size={14} color={colors.onBrandTertiary} />
         <Text style={styles.pointsText}>
@@ -275,6 +264,7 @@ const useStyles = makeStyles((c) => ({
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: c.surfaceSecondary, borderRadius: 999 },
   stepBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   checkoutGemini: { backgroundColor: c.geminiBlue },
+  acpBadge: { backgroundColor: c.brandSecondary, color: c.onBrandSecondary },
   flex: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 8 },
   headerTitle: { fontSize: 17, fontWeight: "600", color: c.onSurface },

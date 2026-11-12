@@ -12,6 +12,7 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 - Mock endpoints: ACP `/api/checkout_sessions` (+ `/complete`), Agent Pay `/api/agentpay/tokenize`, Citi `/api/citi/authorize` (enforces agent enabled/revoked + per-purchase limit), `/api/agents`, `/api/transactions`
 
 ## Implemented (Jun 2026)
+- Replaced Instacart with Apple Pay (ChatGPT journey) and Google Pay (Gemini journey); Target is merchant for both
 - Gemini journey (UCP + AP2 mandates, Target as merchant) alongside ChatGPT/ACP; /compare screen
 - Multi-item cart: AI suggestions with Add, qty steppers, PATCH checkout session for items & tip
 - Spending Insights on Agent Activity (month nav, by agent/merchant), seeded demo history

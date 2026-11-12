@@ -57,7 +57,7 @@ export default function Home() {
               </View>
               <View style={styles.flex}>
                 <Text style={styles.startTitle}>ChatGPT journey · ACP</Text>
-                <Text style={styles.startSub}>ChatGPT → Instacart → Citi authorization</Text>
+                <Text style={styles.startSub}>ChatGPT → Target → Apple Pay → Citi</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
             </Pressable>
@@ -67,7 +67,7 @@ export default function Home() {
               </View>
               <View style={styles.flex}>
                 <Text style={styles.startTitle}>Gemini journey · UCP + AP2</Text>
-                <Text style={styles.startSub}>Gemini → Target (UCP) → Citi mandates</Text>
+                <Text style={styles.startSub}>Gemini → Target (UCP) → Google Pay → Citi</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
             </Pressable>

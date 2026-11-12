@@ -53,7 +53,7 @@ def now_iso() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Mock catalog (Instacart / Target via UCP product feed)
+# Mock catalog (Target product feed via ACP / UCP)
 # ---------------------------------------------------------------------------
 PRODUCTS = {
     "gf-saul-taupe": {
@@ -109,10 +109,10 @@ PRODUCTS = {
 }
 
 AGENT_JOURNEYS = {
-    "chatgpt": {"name": "ChatGPT", "app": "the Instacart app inside ChatGPT", "merchant": "Target via Instacart",
-                "protocol": "ACP 2025-09-29", "widget": "Instacart widget"},
-    "gemini": {"name": "Gemini", "app": "Target's UCP checkout inside Gemini", "merchant": "Target",
-               "protocol": "UCP 2026-01 + AP2", "widget": "Target cart"},
+    "chatgpt": {"name": "ChatGPT", "app": "Target's ACP checkout inside ChatGPT (paid with Apple Pay)", "merchant": "Target",
+                "protocol": "ACP 2025-09-29", "widget": "Target cart", "wallet": "Apple Pay"},
+    "gemini": {"name": "Gemini", "app": "Target's UCP checkout inside Gemini (paid with Google Pay)", "merchant": "Target",
+               "protocol": "UCP 2026-01 + AP2", "widget": "Target cart", "wallet": "Google Pay"},
 }
 
 DELIVERY_FEE = 7.99
@@ -289,7 +289,7 @@ async def create_checkout(body: CheckoutCreate):
     sid = f"cs_{secrets.token_hex(8)}"
     session = {
         "id": sid, "status": "ready_for_payment", "protocol": journey["protocol"],
-        "merchant": journey["merchant"], "agent_id": body.agent_id,
+        "merchant": journey["merchant"], "agent_id": body.agent_id, "wallet": journey["wallet"],
         "line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, body.tip), "currency": "USD",
         "fulfillment": {"type": "delivery", "address": "10848 South Bell Avenue, Chicago, IL", "window": "10:16am – 11:17am"},
         "card": CARD, "created_at": now_iso(),
@@ -358,7 +358,7 @@ async def citi_authorize(body: AuthorizeRequest):
         "id": existing["id"] if existing else f"txn_{secrets.token_hex(6)}",
         "checkout_session_id": s["id"], "merchant": s["merchant"],
         "agent_id": s["agent_id"], "agent_name": agent["name"] if agent else s["agent_id"],
-        "item": s["summary"],
+        "item": s["summary"], "wallet": s.get("wallet"),
         "item_full": "; ".join(f"{l['quantity']}x {l['product']['name']} ({l['product']['variant']})" for l in s["line_items"]),
         "amount": amount, "card_last4": CARD["last4"], "status": status, "reason": reason,
         "auth_code": secrets.token_hex(3).upper() if status == "approved" else None,
@@ -409,11 +409,11 @@ SEED_TXNS = [
     (0, 2, "gemini", "Target", "Beach Towel Set", 32.40, "completed", None),
     (0, 5, "chatgpt", "DoorDash", "Dinner order", 41.18, "completed", None),
     (0, 8, "gemini", "Best Buy", "USB-C Charger", 58.99, "declined", "Declined by cardholder"),
-    (1, 3, "chatgpt", "Target via Instacart", "Weekly groceries", 86.42, "completed", None),
+    (1, 3, "chatgpt", "Target", "Weekly groceries", 86.42, "completed", None),
     (1, 12, "gemini", "Walmart", "Kitchen essentials", 54.10, "completed", None),
     (1, 19, "perplexity", "Best Buy", "Wireless earbuds", 79.99, "completed", None),
     (1, 25, "chatgpt", "Etsy", "Custom mug", 24.00, "completed", None),
-    (2, 6, "chatgpt", "Target via Instacart", "Party supplies", 63.75, "completed", None),
+    (2, 6, "chatgpt", "Target", "Party supplies", 63.75, "completed", None),
     (2, 14, "gemini", "Target", "Running socks", 18.50, "completed", None),
     (2, 22, "perplexity", "Expedia", "Hotel deposit", 120.00, "declined", "Exceeds $100.00 agent spending limit"),
 ]
