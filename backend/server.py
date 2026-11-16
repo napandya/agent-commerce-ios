@@ -79,10 +79,10 @@ PRODUCTS = {
 }
 
 AGENT_JOURNEYS = {
-    "chatgpt": {"name": "ChatGPT", "app": "the Wayfair app inside ChatGPT (Agentic Commerce Protocol)",
-                "protocol": "ACP", "model": ("openai", "gpt-5.4"), "wallet": "Apple Pay"},
-    "gemini": {"name": "Gemini", "app": "Wayfair's Universal Commerce Protocol checkout inside Gemini",
-               "protocol": "UCP", "model": ("gemini", "gemini-3-flash-preview"), "wallet": "Google Pay"},
+    "chatgpt": {"name": "ChatGPT", "app": "the Wayfair app inside ChatGPT",
+                "model": ("openai", "gpt-5.4"), "wallet": "Apple Pay"},
+    "gemini": {"name": "Gemini", "app": "Wayfair checkout inside Gemini",
+               "model": ("gemini", "gemini-3-flash-preview"), "wallet": "Google Pay"},
 }
 
 OFFER = {
@@ -104,9 +104,9 @@ TAX_RATE = 0.1025
 POINTS_PER_DOLLAR = 1
 CARD = {"brand": "Mastercard", "last4": "4680", "product": "Citi Custom Cash® Card"}
 DEFAULT_AGENTS = [
-    {"id": "chatgpt", "name": "ChatGPT", "provider": "OpenAI", "protocol": "ACP", "enabled": True, "limit": 2000.0},
-    {"id": "gemini", "name": "Gemini", "provider": "Google", "protocol": "UCP", "enabled": True, "limit": 2000.0},
-    {"id": "perplexity", "name": "Perplexity", "provider": "Perplexity AI", "protocol": "Agent Pay", "enabled": False, "limit": 100.0},
+    {"id": "chatgpt", "name": "ChatGPT", "provider": "OpenAI", "enabled": True, "limit": 2000.0},
+    {"id": "gemini", "name": "Gemini", "provider": "Google", "enabled": True, "limit": 2000.0},
+    {"id": "perplexity", "name": "Perplexity", "provider": "Perplexity AI", "enabled": False, "limit": 100.0},
 ]
 CATALOG_JSON = json.dumps([{k: p[k] for k in ("id", "name", "variant", "price", "clearance")} for p in PRODUCTS.values()])
 
@@ -264,13 +264,13 @@ async def chat_stream(req: ChatRequest):
     return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-# ---------------- Wayfair cart (ACP / UCP checkout session) ----------------
+# ---------------- Wayfair cart ----------------
 @api.post("/carts")
 async def create_cart(body: CartCreate):
     lines = build_lines(body.items)
     cart = {
         "cart_ref": f"wf_cart_{secrets.token_hex(6)}", "status": "open", "retailer": "Wayfair",
-        "agent_id": body.agent_id, "protocol": AGENT_JOURNEYS[body.agent_id]["protocol"],
+        "agent_id": body.agent_id,
         "wallet": AGENT_JOURNEYS[body.agent_id]["wallet"],
         "line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines),
         "offer_status": "unchecked", "offer": None, "activation": None, "created_at": now_iso(),
@@ -366,16 +366,16 @@ def month_shift(dt: datetime, k: int) -> tuple[int, int]:
 
 
 SEED_TXNS = [
-    (0, 2, "gemini", "Target", "Beach Towel Set", 32.40, "completed", None),
-    (0, 5, "chatgpt", "DoorDash", "Dinner order", 41.18, "completed", None),
-    (0, 8, "gemini", "Best Buy", "USB-C Charger", 58.99, "declined", "Declined by cardholder"),
-    (1, 3, "chatgpt", "Walmart", "Weekly groceries", 86.42, "completed", None),
-    (1, 12, "gemini", "Walmart", "Kitchen essentials", 54.10, "completed", None),
-    (1, 19, "perplexity", "Best Buy", "Wireless earbuds", 79.99, "completed", None),
-    (1, 25, "chatgpt", "Etsy", "Custom mug", 24.00, "completed", None),
-    (2, 6, "chatgpt", "Walmart", "Party supplies", 63.75, "completed", None),
-    (2, 14, "gemini", "Target", "Running socks", 18.50, "completed", None),
-    (2, 22, "perplexity", "Expedia", "Hotel deposit", 120.00, "declined", "Exceeds $100.00 agent spending limit"),
+    (0, 2, "gemini", "Wayfair", "Throw pillow set", 32.40, "completed", None),
+    (0, 5, "chatgpt", "Wayfair", "Table lamp", 41.18, "completed", None),
+    (0, 8, "gemini", "Wayfair", "Bar stools (2)", 158.99, "declined", "Declined by cardholder"),
+    (1, 3, "chatgpt", "Wayfair", "Area rug 5x8", 186.42, "completed", None),
+    (1, 12, "gemini", "Wayfair", "Bookshelf", 154.10, "completed", None),
+    (1, 19, "perplexity", "Wayfair", "Wall mirror", 79.99, "completed", None),
+    (1, 25, "chatgpt", "Wayfair", "Curtain panels", 24.00, "completed", None),
+    (2, 6, "chatgpt", "Wayfair", "Coffee table", 263.75, "completed", None),
+    (2, 14, "gemini", "Wayfair", "Bath towel set", 18.50, "completed", None),
+    (2, 22, "perplexity", "Wayfair", "Accent chair", 120.00, "declined", "Exceeds $100.00 agent spending limit"),
 ]
 AGENT_NAMES = {a["id"]: a["name"] for a in DEFAULT_AGENTS}
 
@@ -394,7 +394,7 @@ async def seed_history() -> None:
             "points_earned": int(amount * POINTS_PER_DOLLAR) if status == "completed" else 0,
             "payment_option": "card" if status == "completed" else None, "created_at": created, "seeded": True,
         }
-        await db.transactions.update_one({"id": doc["id"]}, {"$setOnInsert": doc}, upsert=True)
+        await db.transactions.update_one({"id": doc["id"]}, {"$set": doc}, upsert=True)
 
 
 @api.get("/insights")

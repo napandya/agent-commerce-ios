@@ -58,7 +58,7 @@ def test_chat_stream(s, agent):
 # Cart creation / validation
 def test_create_cart_and_get(s):
     c = mk_cart(s, [{"product_id": "wf-etta-velvet", "quantity": 1}], "gemini")
-    assert c["cart_ref"].startswith("wf_cart_") and c["protocol"] == "UCP" and c["offer_status"] == "unchecked"
+    assert c["cart_ref"].startswith("wf_cart_") and c["offer_status"] == "unchecked"
     assert c["totals"]["subtotal"] == 699.99
     g = s.get(f"{BASE_URL}/api/carts/{c['cart_ref']}")
     assert g.status_code == 200 and g.json()["summary"] == "Celeste Velvet Sofa"

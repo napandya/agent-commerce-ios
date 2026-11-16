@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Modal, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,6 +14,27 @@ import { ChatStep, type ChatMsg } from "@/src/components/steps/ChatStep";
 import { CitiSignInStep, DoneStep, OffersStep, WayfairCartStep } from "@/src/components/steps/OffersSteps";
 
 const newSessionId = () => `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+type Scenario = "offer" | "no_offer";
+const SCENARIOS: Record<Scenario, { prompt: string; product: string }> = {
+  offer: { prompt: "I need a big sectional for my living room", product: "wf-arnav-sectional" },
+  no_offer: { prompt: "Something small for my apartment, under $400", product: "wf-zipcode-loveseat" },
+};
+
+function narration(step: number, s: Scenario, agent: string, wallet: string) {
+  const offer = s === "offer";
+  return [
+    `${agent} is where the shopper starts. They ask for a sofa and the Wayfair app shows products and a cart. They add ${offer ? "a $1,249.99 sectional" : "a $389.99 loveseat"} and tap Check Citi offers.`,
+    "Wayfair opens Citi's page with a signed cart reference — no card number or credentials are shared with the agent. The shopper signs in on Citi's page with Face ID.",
+    offer
+      ? "Citi Offers asks Mastercard Offers for matches. The retailer-wide pilot matches: 10% back up to $150. Activating records it with Mastercard."
+      : "Citi Offers asks Mastercard Offers for matches. None apply — the loveseat is under the $500 minimum — so Citi says so clearly and sends the shopper back.",
+    `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet} and their Citi card.`,
+    offer
+      ? "Order placed. When the purchase clears, Mastercard matches it to the activation and Citi posts the $125 statement credit."
+      : "Order placed without an offer — the purchase posts as usual and appears in Agent Activity.",
+  ][step];
+}
 
 export default function Shop() {
   const styles = useStyles();
@@ -34,6 +55,10 @@ export default function Shop() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [step, setStepRaw] = useState(0);
+  const [presenting, setPresenting] = useState<Scenario | null>(null);
+  const [paused, setPaused] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [autoPrompt, setAutoPrompt] = useState<string | null>(null);
   const setStep = (n: number) => {
     setError(null);
     setStepRaw(n);
@@ -95,8 +120,33 @@ export default function Shop() {
     setLookup(null);
     setActivation(null);
     setOrder(null);
+    setAutoPrompt(null);
     setStep(0);
   };
+
+  const startPresenter = (s: Scenario) => {
+    setPickerOpen(false);
+    restart();
+    setPaused(false);
+    setPresenting(s);
+  };
+
+  const running = !!presenting && !paused;
+  useEffect(() => {
+    if (!running || !presenting) return;
+    const sc = SCENARIOS[presenting];
+    let t: ReturnType<typeof setTimeout> | undefined;
+    if (step === 0) {
+      const last = messages[messages.length - 1];
+      if (messages.length === 0) t = setTimeout(() => setAutoPrompt(sc.prompt), 5000);
+      else if (last?.role === "assistant" && (last.productIds || last.error) && !qty[sc.product]) t = setTimeout(() => setQty(sc.product, 1), 6000);
+      else if (qty[sc.product] && !busy) t = setTimeout(checkOffers, 5000);
+    } else if (step === 3 && !busy && !error) {
+      t = setTimeout(placeOrder, 7000);
+    }
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, presenting, step, messages, qty, busy, error]);
 
   const canGoBack = step > 0 && step < 4;
 
@@ -119,18 +169,60 @@ export default function Shop() {
           }}
         >
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{agent.name} · {agent.protocol}</Text>
+            <Text style={styles.title}>{agent.name}</Text>
             <Ionicons name="swap-horizontal" size={14} color={colors.muted} />
           </View>
           <Text style={styles.subtitle} numberOfLines={1}>
             Tap to switch to {agent.id === "chatgpt" ? "Gemini" : "ChatGPT"}
           </Text>
         </Pressable>
+        <Pressable testID="presenter-button" style={styles.iconBtn} onPress={() => (presenting ? setPresenting(null) : setPickerOpen(true))}>
+          <Ionicons name={presenting ? "stop-circle-outline" : "play-circle-outline"} size={24} color={presenting ? colors.error : colors.onSurface} />
+        </Pressable>
         <Pressable testID="journey-restart-button" style={styles.iconBtn} onPress={restart}>
           <Ionicons name="refresh" size={20} color={colors.onSurface} />
         </Pressable>
       </View>
       <Stepper step={step} labels={STEPS} />
+      {presenting && (
+        <View style={styles.presenter} testID="presenter-commentary">
+          <View style={styles.presenterHead}>
+            <View style={[styles.liveDot, paused && styles.liveDotPaused]} />
+            <Text style={styles.presenterKicker}>
+              PRESENTER · {presenting === "offer" ? "OFFER" : "NO OFFER"} · {step + 1}/5
+            </Text>
+            <Pressable testID="presenter-pause-button" style={styles.presenterBtn} onPress={() => setPaused((p) => !p)} hitSlop={6}>
+              <Ionicons name={paused ? "play" : "pause"} size={16} color={colors.onSurfaceInverse} />
+            </Pressable>
+            <Pressable testID="presenter-exit-button" style={styles.presenterBtn} onPress={() => setPresenting(null)} hitSlop={6}>
+              <Ionicons name="close" size={16} color={colors.onSurfaceInverse} />
+            </Pressable>
+          </View>
+          <Text style={styles.presenterText} testID="presenter-text">{narration(step, presenting, agent.name, agent.walletName)}</Text>
+        </View>
+      )}
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
+          <View style={styles.modalCard} testID="presenter-picker">
+            <Text style={styles.modalTitle}>Presenter mode</Text>
+            <Text style={styles.modalSub}>Auto-plays the {agent.name} offers flow with commentary. Pause or exit any time.</Text>
+            <Pressable testID="presenter-start-offer" style={styles.modalOption} onPress={() => startPresenter("offer")}>
+              <Ionicons name="pricetag" size={18} color={colors.success} />
+              <View style={styles.flex}>
+                <Text style={styles.modalOptTitle}>Offer available</Text>
+                <Text style={styles.modalSub}>Sectional sofa · $125 back activated</Text>
+              </View>
+            </Pressable>
+            <Pressable testID="presenter-start-no-offer" style={styles.modalOption} onPress={() => startPresenter("no_offer")}>
+              <Ionicons name="pricetag-outline" size={18} color={colors.muted} />
+              <View style={styles.flex}>
+                <Text style={styles.modalOptTitle}>No matching offer</Text>
+                <Text style={styles.modalSub}>Loveseat under $500 · no offer</Text>
+              </View>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
 
       <KeyboardAvoidingView behavior="padding" style={styles.flex}>
         {error && step === 0 ? (
@@ -143,6 +235,7 @@ export default function Shop() {
         <View style={[styles.body, citi && styles.bodyCiti]}>
           {step === 0 && (
             <ChatStep
+              key={chatId}
               agent={agent}
               sessionId={chatId}
               messages={messages}
@@ -152,9 +245,11 @@ export default function Shop() {
               setQty={setQty}
               onCheckout={checkOffers}
               checkingOut={busy === "check"}
+              onNewChat={restart}
+              autoPrompt={running ? autoPrompt : null}
             />
           )}
-          {step === 1 && cart && <CitiSignInStep cart={cart} onVerified={() => setStep(2)} />}
+          {step === 1 && cart && <CitiSignInStep cart={cart} onVerified={() => setStep(2)} auto={running} />}
           {step === 2 && cart && (
             <OffersStep
               cart={cart}
@@ -163,6 +258,7 @@ export default function Shop() {
               activation={activation}
               setActivation={setActivation}
               onReturn={() => setStep(3)}
+              auto={running}
             />
           )}
           {step === 3 && cart && (
@@ -200,4 +296,17 @@ const useStyles = makeStyles((c) => ({
   bodyCiti: { backgroundColor: c.surfaceInverse },
   errorBanner: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.error, paddingHorizontal: 16, minHeight: 44 },
   errorText: { flex: 1, color: c.onError, fontSize: 13, fontWeight: "600" },
+  presenter: { backgroundColor: c.surfaceInverse, marginHorizontal: 8, marginBottom: 8, borderRadius: 14, padding: 12, gap: 6 },
+  presenterHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.error },
+  liveDotPaused: { backgroundColor: c.citiMuted },
+  presenterKicker: { flex: 1, fontSize: 10, fontWeight: "800", letterSpacing: 0.8, color: c.citiMuted },
+  presenterBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.citiCard, alignItems: "center", justifyContent: "center" },
+  presenterText: { fontSize: 14, lineHeight: 20, color: c.onSurfaceInverse },
+  modalBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: "center", padding: 24 },
+  modalCard: { backgroundColor: c.surface, borderRadius: 20, padding: 20, gap: 10 },
+  modalTitle: { fontSize: 20, fontWeight: "800", color: c.onSurface },
+  modalSub: { fontSize: 13, color: c.muted },
+  modalOption: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 14, minHeight: 56 },
+  modalOptTitle: { fontSize: 15, fontWeight: "700", color: c.onSurface },
 }));

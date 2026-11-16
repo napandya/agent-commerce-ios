@@ -42,7 +42,7 @@ function CardRow({ label }: { label: string }) {
   );
 }
 
-export function CitiSignInStep({ cart, onVerified }: { cart: Cart; onVerified: () => void }) {
+export function CitiSignInStep({ cart, onVerified, auto }: { cart: Cart; onVerified: () => void; auto?: boolean }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [prompt, setPrompt] = useState(false);
@@ -66,6 +66,13 @@ export function CitiSignInStep({ cart, onVerified }: { cart: Cart; onVerified: (
       }, 1000),
     );
   };
+
+  useEffect(() => {
+    if (!auto || !prompt || phase !== "idle") return;
+    const t = setTimeout(scan, 5000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, prompt, phase]);
 
   return (
     <View style={styles.root} testID="citi-signin-step">
@@ -105,10 +112,10 @@ export function CitiSignInStep({ cart, onVerified }: { cart: Cart; onVerified: (
 const LOOKUP_STEPS = ["Cart reference received from Wayfair", "Looking up eligible offers with Mastercard Offers", "Matches returned"];
 
 export function OffersStep({
-  cart, lookup, setLookup, activation, setActivation, onReturn,
+  cart, lookup, setLookup, activation, setActivation, onReturn, auto,
 }: {
   cart: Cart; lookup: Lookup | null; setLookup: (l: Lookup) => void;
-  activation: Activation | null; setActivation: (a: Activation) => void; onReturn: () => void;
+  activation: Activation | null; setActivation: (a: Activation) => void; onReturn: () => void; auto?: boolean;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -153,6 +160,13 @@ export function OffersStep({
 
   const done = !!lookup;
   const offer = lookup?.offer;
+
+  useEffect(() => {
+    if (!auto || !lookup || activating) return;
+    const t = setTimeout(lookup.offer && !activation ? activate : onReturn, 6500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, lookup, activation, activating]);
 
   return (
     <View style={styles.root} testID="offers-step">

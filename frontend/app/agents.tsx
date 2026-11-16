@@ -93,7 +93,7 @@ export default function Agents() {
               <View style={styles.avatar}><Text style={styles.avatarText}>{a.name[0]}</Text></View>
               <View style={styles.flex}>
                 <Text style={styles.name}>{a.name}</Text>
-                <Text style={styles.meta}>{a.provider} · {a.protocol}</Text>
+                <Text style={styles.meta}>{a.provider}</Text>
               </View>
               <Switch
                 testID={`agent-toggle-${a.id}`}

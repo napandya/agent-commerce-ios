@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -7,6 +7,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { money, streamChat, type Product } from "@/src/api";
 import { WalletMark, WayfairLogo } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
+import { AppPicker, ChatSidebar } from "@/src/components/ChatChrome";
 
 export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productIds?: string[]; error?: boolean };
 
@@ -26,13 +27,18 @@ type Props = {
   setQty: (id: string, qty: number) => void;
   onCheckout: () => void;
   checkingOut: boolean;
+  onNewChat: () => void;
+  autoPrompt?: string | null;
 };
 
-export function ChatStep({ agent, sessionId, messages, setMessages, products, cart, setQty, onCheckout, checkingOut }: Props) {
+export function ChatStep({ agent, sessionId, messages, setMessages, products, cart, setQty, onCheckout, checkingOut, onNewChat, autoPrompt }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sidebar, setSidebar] = useState(false);
+  const [picker, setPicker] = useState(false);
+  const [appOn, setAppOn] = useState(true);
   const scroll = useRef<ScrollView>(null);
   const gemini = agent.id === "gemini";
   const cartIds = Object.keys(cart).filter((id) => products[id]);
@@ -64,37 +70,40 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
     }
   };
 
+  useEffect(() => {
+    if (autoPrompt && messages.length === 0) send(autoPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrompt]);
+
   return (
     <View style={[styles.root, gemini && styles.rootGemini]} testID="chat-step">
       <View style={styles.header}>
-        <Ionicons name="menu" size={22} color={colors.onSurface} />
-        <View style={styles.headerCenter}>
+        <Pressable testID="chat-menu-button" style={styles.hBtn} onPress={() => setSidebar(true)}>
+          <Ionicons name="menu" size={24} color={colors.onSurface} />
+        </Pressable>
+        <View style={styles.headerCenter} testID="chat-model-label">
           {gemini && <Ionicons name="sparkles" size={16} color={colors.geminiBlue} />}
           <Text style={styles.headerTitle} testID="chat-agent-name">{agent.name}</Text>
+          <Text style={styles.modelText}>{gemini ? "3 Flash" : "5.4"}</Text>
+          <Ionicons name="chevron-forward" size={14} color={colors.muted} />
         </View>
-        <Ionicons name="create-outline" size={22} color={colors.onSurface} />
+        <Pressable testID="chat-new-button" style={styles.hBtn} onPress={onNewChat}>
+          <Ionicons name="create-outline" size={22} color={colors.onSurface} />
+        </Pressable>
       </View>
       <ScrollView
         ref={scroll}
         style={styles.flex}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, messages.length === 0 && styles.listEmpty]}
         onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}
         keyboardShouldPersistTaps="handled"
       >
         {messages.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>{gemini ? "Hello, Pat. What should we shop for?" : "What are you shopping for?"}</Text>
+            <Text style={styles.emptyTitle}>{gemini ? "Hello, Pat" : "What can I help with?"}</Text>
             <Text style={styles.emptySub}>
-              {gemini
-                ? "Gemini can shop Wayfair directly using UCP."
-                : "The Wayfair app is connected. Ask ChatGPT to find a sofa."}
+              {appOn ? "Wayfair is connected. Ask about sofas." : "Tap + to connect the Wayfair app."}
             </Text>
-            {agent.suggestions.map((s, i) => (
-              <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.suggestion} onPress={() => send(s)}>
-                <Ionicons name="sparkles-outline" size={16} color={colors.muted} />
-                <Text style={styles.suggestionText}>{s}</Text>
-              </Pressable>
-            ))}
           </View>
         )}
         {messages.map((m) =>
@@ -107,9 +116,16 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
               {m.text ? (
                 <Text style={[styles.aiText, m.error && { color: colors.error }]}>{clean(m.text)}</Text>
               ) : (
-                <ActivityIndicator color={colors.muted} style={styles.typing} />
+                <View style={styles.thinking}><View style={styles.dot} /><Text style={styles.thinkingText}>Thinking</Text></View>
               )}
-              {m.productIds?.map((id) =>
+              {m.productIds && (
+                <View style={styles.actions}>
+                  {(["copy-outline", "thumbs-up-outline", "thumbs-down-outline", "volume-medium-outline", "refresh"] as const).map((n) => (
+                    <Ionicons key={n} name={n} size={16} color={colors.muted} />
+                  ))}
+                </View>
+              )}
+              {appOn && m.productIds?.map((id) =>
                 products[id] ? (
                   <SuggestionRow key={id} product={products[id]} inCart={!!cart[id]} onAdd={() => setQty(id, (cart[id] ?? 0) + 1)} />
                 ) : null,
@@ -121,15 +137,30 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
           <CartWidget agent={agent} products={products} cart={cart} setQty={setQty} onCheckout={onCheckout} loading={checkingOut} disabled={busy} />
         )}
       </ScrollView>
+      {messages.length === 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.sugScroll} contentContainerStyle={styles.sugRowH}>
+          {agent.suggestions.map((s, i) => (
+            <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.sugCard} onPress={() => send(s)}>
+              <Text style={styles.sugCardText} numberOfLines={2}>{s}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
       <View style={styles.composer}>
-        <View style={styles.chip}>
-          <View style={styles.chipRow}><WayfairLogo size={14} /><Text style={styles.chipText}>{agent.storeLabel}</Text></View>
-        </View>
-        <View style={styles.inputRow}>
+        <View style={styles.composerBox}>
+          {appOn && (
+            <View style={styles.chip} testID="composer-app-chip">
+              <WayfairLogo size={14} />
+              <Text style={styles.chipText}>{agent.storeLabel}</Text>
+              <Pressable testID="composer-app-remove" style={styles.chipClose} onPress={() => setAppOn(false)} hitSlop={8}>
+                <Ionicons name="close" size={14} color={colors.muted} />
+              </Pressable>
+            </View>
+          )}
           <TextInput
             testID="chat-input"
             style={styles.input}
-            placeholder={`Ask ${agent.name}`}
+            placeholder={gemini ? "Ask Gemini" : "Ask anything"}
             placeholderTextColor={colors.muted}
             value={input}
             onChangeText={setInput}
@@ -137,16 +168,26 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
             returnKeyType="send"
             editable={!busy}
           />
-          <Pressable
-            testID="chat-send-button"
-            onPress={() => send(input)}
-            style={[styles.send, (!input.trim() || busy) && styles.sendOff]}
-            disabled={!input.trim() || busy}
-          >
-            {busy ? <ActivityIndicator size="small" color={colors.onBrandPrimary} /> : <Ionicons name="arrow-up" size={18} color={colors.onBrandPrimary} />}
-          </Pressable>
+          <View style={styles.composerBottom}>
+            <Pressable testID="chat-plus-button" style={styles.plusBtn} onPress={() => setPicker(true)} hitSlop={6}>
+              <Ionicons name="add" size={22} color={colors.onSurface} />
+            </Pressable>
+            <View style={styles.flex} />
+            <Ionicons name="mic-outline" size={22} color={colors.onSurfaceTertiary} />
+            <Pressable
+              testID="chat-send-button"
+              hitSlop={6}
+              onPress={() => send(input)}
+              style={[styles.send, (!input.trim() || busy) && styles.sendOff]}
+              disabled={!input.trim() || busy}
+            >
+              {busy ? <ActivityIndicator size="small" color={colors.onBrandPrimary} /> : <Ionicons name="arrow-up" size={18} color={colors.onBrandPrimary} />}
+            </Pressable>
+          </View>
         </View>
       </View>
+      <ChatSidebar agent={agent} open={sidebar} onClose={() => setSidebar(false)} onNewChat={onNewChat} onOpenApps={() => setPicker(true)} appOn={appOn} />
+      <AppPicker open={picker} onClose={() => setPicker(false)} appOn={appOn} setAppOn={setAppOn} />
     </View>
   );
 }
@@ -187,7 +228,6 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
         <View style={styles.chipRow}>
           <WayfairLogo size={20} />
           <Text style={styles.wTitle}>{agent.storeLabel}</Text>
-          <Text style={[styles.ucpBadge, !gemini && styles.acpBadge]}>{gemini ? "UCP" : "ACP"} checkout</Text>
         </View>
         <Text style={styles.wFee} testID="cart-count">{count} item{count === 1 ? "" : "s"}</Text>
       </View>
@@ -254,7 +294,6 @@ const useStyles = makeStyles((c) => ({
   chipRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   chipText: { fontSize: 15, fontWeight: "700", color: c.onSurface },
   wTitle: { fontSize: 15, fontWeight: "700", color: c.onSurface },
-  ucpBadge: { fontSize: 10, fontWeight: "700", color: c.onGeminiBlue, backgroundColor: c.geminiBlue, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, overflow: "hidden" },
   sugRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 8 },
   sugImg: { width: 40, height: 40, borderRadius: 8, backgroundColor: c.surfaceSecondary },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, height: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: c.brandPrimary },
@@ -264,24 +303,17 @@ const useStyles = makeStyles((c) => ({
   stepper: { flexDirection: "row", alignItems: "center", backgroundColor: c.surfaceSecondary, borderRadius: 999 },
   stepBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
   checkoutGemini: { backgroundColor: c.geminiBlue },
-  acpBadge: { backgroundColor: c.brandSecondary, color: c.onBrandSecondary },
   flex: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 8 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, paddingVertical: 2 },
   headerTitle: { fontSize: 17, fontWeight: "600", color: c.onSurface },
   list: { padding: 16, gap: 12 },
-  empty: { paddingTop: 16, gap: 8 },
-  emptyTitle: { fontSize: 22, fontWeight: "700", color: c.onSurface },
-  emptySub: { fontSize: 14, color: c.muted, marginBottom: 8 },
-  suggestion: {
-    flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: c.border,
-    borderRadius: 12, paddingHorizontal: 12, minHeight: 48,
-  },
-  suggestionText: { flex: 1, fontSize: 14, color: c.onSurface },
-  userBubble: { alignSelf: "flex-end", maxWidth: "80%", backgroundColor: c.surfaceSecondary, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  userText: { fontSize: 15, color: c.onSurface },
-  aiWrap: { gap: 12 },
-  aiText: { fontSize: 15, lineHeight: 22, color: c.onSurface },
-  typing: { alignSelf: "flex-start" },
+  empty: { alignItems: "center", gap: 8 },
+  emptyTitle: { fontSize: 26, fontWeight: "600", color: c.onSurface, textAlign: "center" },
+  emptySub: { fontSize: 14, color: c.muted, textAlign: "center" },
+  userBubble: { alignSelf: "flex-end", maxWidth: "80%", backgroundColor: c.surfaceSecondary, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10 },
+  userText: { fontSize: 16, color: c.onSurface },
+  aiWrap: { gap: 10 },
+  aiText: { fontSize: 16, lineHeight: 24, color: c.onSurface },
   widget: {
     borderWidth: 1, borderColor: c.border, borderRadius: 16, backgroundColor: c.surface, overflow: "hidden",
     shadowColor: c.onSurface, shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
@@ -307,13 +339,25 @@ const useStyles = makeStyles((c) => ({
     alignItems: "center", justifyContent: "center",
   },
   checkoutText: { color: c.onBrandSecondary, fontSize: 16, fontWeight: "700" },
-  composer: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, borderTopWidth: 1, borderTopColor: c.divider, gap: 8 },
-  chip: { alignSelf: "flex-start", backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  inputRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  input: {
-    flex: 1, height: 44, borderRadius: 22, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16,
-    fontSize: 15, color: c.onSurface,
-  },
-  send: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
+  composer: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 8 },
+  composerBox: { borderWidth: 1, borderColor: c.border, borderRadius: 26, paddingHorizontal: 8, paddingTop: 8, paddingBottom: 6, gap: 4, backgroundColor: c.surface,
+    shadowColor: c.onSurface, shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  chipClose: { width: 24, height: 24, alignItems: "center", justifyContent: "center" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.surfaceSecondary, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginLeft: 4 },
+  input: { minHeight: 40, paddingHorizontal: 8, fontSize: 16, color: c.onSurface },
+  composerBottom: { flexDirection: "row", alignItems: "center", gap: 12 },
+  plusBtn: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  send: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
   sendOff: { opacity: 0.35 },
+  hBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  modelText: { fontSize: 17, fontWeight: "400", color: c.muted },
+  listEmpty: { flexGrow: 1, justifyContent: "center" },
+  thinking: { flexDirection: "row", alignItems: "center", gap: 8 },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.onSurface },
+  thinkingText: { fontSize: 14, color: c.muted },
+  actions: { flexDirection: "row", gap: 16, paddingVertical: 2 },
+  sugScroll: { flexGrow: 0 },
+  sugRowH: { gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  sugCard: { flexShrink: 0, width: 200, borderRadius: 16, backgroundColor: c.surfaceSecondary, paddingHorizontal: 14, paddingVertical: 10, minHeight: 56, justifyContent: "center" },
+  sugCardText: { fontSize: 14, color: c.onSurface },
 }));

@@ -56,7 +56,7 @@ export default function Home() {
                 <Ionicons name="chatbubbles" size={22} color={colors.onBrandPrimary} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.startTitle}>Shop sofas with ChatGPT · ACP</Text>
+                <Text style={styles.startTitle}>Shop sofas with ChatGPT</Text>
                 <Text style={styles.startSub}>Wayfair app in ChatGPT → Check Citi offers</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
@@ -66,15 +66,10 @@ export default function Home() {
                 <Ionicons name="sparkles" size={22} color={colors.onGeminiBlue} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.startTitle}>Shop sofas with Gemini · UCP</Text>
-                <Text style={styles.startSub}>Wayfair via UCP in Gemini → Check Citi offers</Text>
+                <Text style={styles.startTitle}>Shop sofas with Gemini</Text>
+                <Text style={styles.startSub}>Wayfair in Gemini → Check Citi offers</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
-            </Pressable>
-            <Pressable testID="home-compare-link" style={styles.compare} onPress={() => router.push("/compare")}>
-              <Ionicons name="git-compare-outline" size={18} color={colors.stepActive} />
-              <Text style={styles.compareText}>Compare how ACP and UCP hand off to Citi Offers</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.stepActive} />
             </Pressable>
           </Animated.View>
 
@@ -91,7 +86,7 @@ export default function Home() {
             </Animated.View>
           ))}
 
-          <Text style={styles.h2}>Protocols in this demo</Text>
+          <Text style={styles.h2}>How offers work</Text>
           {PROTOCOL_OVERVIEW.map((p, i) => (
             <Animated.View key={p.id} entering={FadeInDown.delay(280 + i * 60).duration(400)} style={styles.proto} testID={`protocol-card-${p.id}`}>
               <View style={styles.protoHead}>
@@ -129,8 +124,6 @@ const useStyles = makeStyles((c) => ({
   journeys: { gap: 8 },
   startGemini: { backgroundColor: c.citiCard },
   startIconGemini: { backgroundColor: c.geminiBlue },
-  compare: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 44, paddingHorizontal: 4 },
-  compareText: { flex: 1, fontSize: 14, fontWeight: "600", color: c.stepActive },
   start: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.brandPrimary, borderRadius: 20, padding: 16, minHeight: 72 },
   startIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: c.citiBlue, alignItems: "center", justifyContent: "center" },
   startTitle: { fontSize: 16, fontWeight: "700", color: c.onBrandPrimary },

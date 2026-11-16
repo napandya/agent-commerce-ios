@@ -21,20 +21,6 @@ export const stepLabels = (agentName: string) => [agentName, "Sign in", "Offers"
 
 export const PROTOCOL_OVERVIEW = [
   {
-    id: "acp",
-    name: "ACP",
-    full: "Agentic Commerce Protocol",
-    by: "OpenAI + Stripe",
-    body: "Lets ChatGPT run a retailer's app and checkout session (here Wayfair) inside the chat, with a scoped payment token.",
-  },
-  {
-    id: "ucp",
-    name: "UCP",
-    full: "Universal Commerce Protocol",
-    by: "Google + retailers",
-    body: "Common language Gemini uses to search a retailer's catalog, build a cart and check out directly with the merchant.",
-  },
-  {
     id: "mco",
     name: "Offers",
     full: "Mastercard Offers",
@@ -43,59 +29,25 @@ export const PROTOCOL_OVERVIEW = [
   },
 ];
 
-export const COMPARISON: { stage: string; acp: string; ucp: string; offers: string }[] = [
-  {
-    stage: "Shop for the sofa",
-    acp: "Wayfair app runs inside ChatGPT; products come from Wayfair's ACP product feed.",
-    ucp: "Gemini calls Wayfair's UCP catalog capability directly.",
-    offers: "Not involved yet.",
-  },
-  {
-    stage: "Check offers",
-    acp: "Wayfair cart widget opens the Citi page with a signed cart reference.",
-    ucp: "UCP cart includes a link-out to the Citi page with the same cart reference.",
-    offers: "Cart reference carries merchant, category and basket amount only — no card data.",
-  },
-  {
-    stage: "Sign in",
-    acp: "Shopper signs in on Citi's page, outside ChatGPT.",
-    ucp: "Shopper signs in on Citi's page, outside Gemini.",
-    offers: "Citi identifies which Citi cards the shopper holds.",
-  },
-  {
-    stage: "Look up & activate",
-    acp: "Agent never sees offer terms until the shopper returns.",
-    ucp: "Agent never sees offer terms until the shopper returns.",
-    offers: "Citi queries Mastercard Offers; activation is recorded against the card.",
-  },
-  {
-    stage: "Return & place order",
-    acp: "ACP checkout completes with Apple Pay.",
-    ucp: "UCP checkout completes with Google Pay.",
-    offers: "Mastercard matches the cleared purchase to the activation; Citi posts the credit.",
-  },
-];
-
 export function getProtocol(agentId: string, step: number, ctx: ProtocolCtx): ProtocolInfo {
-  const acp = agentId !== "gemini";
-  const proto = acp ? "ACP" : "UCP";
-  const agent = acp ? "ChatGPT" : "Gemini";
+  const chatgpt = agentId !== "gemini";
+  const agent = chatgpt ? "ChatGPT" : "Gemini";
   const c = ctx.cart;
   switch (step) {
     case 0:
       return {
-        tags: [proto],
+        tags: ["Wayfair"],
         title: "Shop the retailer catalog",
-        summary: acp
-          ? "ChatGPT runs the Wayfair app via ACP: it reads Wayfair's product feed and shows a Wayfair cart widget in the chat."
-          : "Gemini searches Wayfair's catalog through UCP and builds a cart directly with the merchant.",
+        summary: chatgpt
+          ? "ChatGPT runs the Wayfair app: it reads Wayfair's product feed and shows a Wayfair cart widget in the chat."
+          : "Gemini searches Wayfair's catalog and builds a cart directly with the merchant.",
         flow: ["Shopper", agent, "Wayfair"],
         points: [
-          acp ? "ACP product feed: price, availability, delivery" : "UCP capability: dev.ucp.shopping.catalog.search",
+          "Wayfair product feed: price, availability, delivery",
           "Cart lives with Wayfair (merchant of record)",
           "Agent can't quote Citi offers — only Citi can",
         ],
-        endpoint: acp ? "GET /acp/product_feed?merchant=wayfair.com" : "POST wayfair.com/ucp/v1/catalog/search",
+        endpoint: "POST wayfair.com/api/catalog/search",
         payload: { query: "sofa", merchant: "wayfair.com", deliver_to: "60643" },
       };
     case 1:
@@ -143,13 +95,13 @@ export function getProtocol(agentId: string, step: number, ctx: ProtocolCtx): Pr
       };
     case 3:
       return {
-        tags: [proto],
+        tags: ["Wayfair"],
         title: "Return to cart",
-        summary: `Citi sends the shopper back to the Wayfair cart in either case. The checkout then completes through ${proto} with ${acp ? "Apple Pay" : "Google Pay"} and the Citi card.`,
+        summary: `Citi sends the shopper back to the Wayfair cart in either case. Checkout then completes with ${chatgpt ? "Apple Pay" : "Google Pay"} and the Citi card.`,
         flow: ["Citi Offers", "Wayfair cart", agent],
-        points: ["Return URL carries only offer status", "Activation stays with Citi & Mastercard", `${proto} checkout completes the order`],
-        endpoint: acp ? "POST /acp/checkout_sessions/{id}/complete" : "POST wayfair.com/ucp/v1/checkout-sessions/{id}/complete",
-        payload: { cart_ref: c?.cart_ref, offer_status: ctx.activation ? "activated" : c?.offer_status ?? "no_match", wallet: acp ? "apple_pay" : "google_pay" },
+        points: ["Return URL carries only offer status", "Activation stays with Citi & Mastercard", "Wayfair checkout completes the order"],
+        endpoint: "POST wayfair.com/api/checkout/{cart_ref}/complete",
+        payload: { cart_ref: c?.cart_ref, offer_status: ctx.activation ? "activated" : c?.offer_status ?? "no_match", wallet: chatgpt ? "apple_pay" : "google_pay" },
       };
     default:
       return {

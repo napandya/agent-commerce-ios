@@ -3,8 +3,6 @@ export type AgentId = "chatgpt" | "gemini";
 export type AgentConfig = {
   id: AgentId;
   name: string;
-  protocol: string;
-  tags: string[];
   merchant: string;
   wallet: "apple" | "google";
   walletName: string;
@@ -18,8 +16,6 @@ export const AGENT_CONFIG: Record<AgentId, AgentConfig> = {
   chatgpt: {
     id: "chatgpt",
     name: "ChatGPT",
-    protocol: "ACP",
-    tags: ["ACP"],
     merchant: "Wayfair",
     wallet: "apple",
     walletName: "Apple Pay",
@@ -35,8 +31,6 @@ export const AGENT_CONFIG: Record<AgentId, AgentConfig> = {
   gemini: {
     id: "gemini",
     name: "Gemini",
-    protocol: "UCP",
-    tags: ["UCP"],
     merchant: "Wayfair",
     wallet: "google",
     walletName: "Google Pay",

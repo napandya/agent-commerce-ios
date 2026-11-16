@@ -16,7 +16,7 @@ export type Offer = {
 };
 export type Activation = { activation_id: string; offer_id: string; card_last4: string; credit: number; activated_at: string };
 export type Cart = {
-  cart_ref: string; status: string; retailer: string; agent_id: string; protocol: string; wallet: string;
+  cart_ref: string; status: string; retailer: string; agent_id: string; wallet: string;
   line_items: LineItem[]; summary: string; totals: Totals;
   offer_status: "unchecked" | "eligible" | "no_match" | "activated"; offer: Offer | null; activation: Activation | null;
 };
@@ -34,7 +34,7 @@ export type Txn = {
   points_earned: number; statement_credit?: number; order_id?: string; created_at: string;
 };
 export type Agent = {
-  id: string; name: string; provider: string; protocol: string; enabled: boolean;
+  id: string; name: string; provider: string; enabled: boolean;
   limit: number; revoked: boolean; connected_at: string;
 };
 export type Breakdown = { name: string; amount: number; count: number };
