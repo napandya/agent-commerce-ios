@@ -346,6 +346,7 @@ export function DoneStep({
     ["Order", order.order_id],
     ...cart.line_items.map((l) => [`${l.quantity}×`, l.product.name] as [string, string]),
     ["Paid with", `${order.wallet} · Citi ···· ${order.card_last4}`],
+    ["Authorized", `${order.wallet === "Apple Pay" ? "Face ID" : "Fingerprint"} · approved by Citi`],
     ["Total", money(order.amount)],
     ["Citi offer", order.offer_activated ? `${money(order.statement_credit)} statement credit pending` : "None"],
     ["Delivery", order.eta],

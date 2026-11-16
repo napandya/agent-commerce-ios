@@ -11,6 +11,7 @@ import { agentFrom } from "@/src/agents";
 import { useSkipDelay } from "@/src/presenter";
 import { Stepper } from "@/src/components/Stepper";
 import { ProtocolPanel } from "@/src/components/ProtocolPanel";
+import { PayAuthSheet } from "@/src/components/PayAuthSheet";
 import { ChatStep, type ChatMsg } from "@/src/components/steps/ChatStep";
 import { CitiSignInStep, DoneStep, OffersStep, WayfairCartStep } from "@/src/components/steps/OffersSteps";
 
@@ -30,7 +31,7 @@ function narration(step: number, s: Scenario, agent: string, wallet: string) {
     offer
       ? "Citi Offers asks Mastercard Offers for matches. The retailer-wide pilot matches: 10% back up to $150. Activating records it with Mastercard."
       : "Citi Offers asks Mastercard Offers for matches. None apply — the loveseat is under the $500 minimum — so Citi says so clearly and sends the shopper back.",
-    `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet} and their Citi card.`,
+    `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet}, confirms with biometrics, and Citi approves the payment.`,
     offer
       ? "Order placed. When the purchase clears, Mastercard matches it to the activation and Citi posts the $125 statement credit."
       : "Order placed without an offer — the purchase posts as usual and appears in Agent Activity.",
@@ -61,9 +62,11 @@ export default function Shop() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoPrompt, setAutoPrompt] = useState<string | null>(null);
   const [skip, setSkip] = useState(0);
+  const [authOpen, setAuthOpen] = useState(false);
   const delay = useSkipDelay(skip);
   const setStep = (n: number) => {
     setError(null);
+    setAuthOpen(false);
     setStepRaw(n);
   };
 
@@ -102,6 +105,7 @@ export default function Shop() {
   };
 
   const placeOrder = async () => {
+    setAuthOpen(false);
     if (!cart) return;
     setBusy("order");
     setError(null);
@@ -146,12 +150,12 @@ export default function Shop() {
       if (messages.length === 0) t = setTimeout(() => setAutoPrompt(sc.prompt), wait(5000));
       else if (last?.role === "assistant" && (last.productIds || last.error) && !qty[sc.product]) t = setTimeout(() => setQty(sc.product, 1), wait(6000));
       else if (qty[sc.product] && !busy) t = setTimeout(checkOffers, wait(5000));
-    } else if (step === 3 && !busy && !error) {
-      t = setTimeout(placeOrder, wait(7000));
+    } else if (step === 3 && !busy && !error && !authOpen) {
+      t = setTimeout(() => setAuthOpen(true), wait(7000));
     }
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, presenting, step, messages, qty, busy, error, skip]);
+  }, [running, presenting, step, messages, qty, busy, error, skip, authOpen]);
 
   const stepBack = () => {
     if (step === 0) return;
@@ -310,7 +314,7 @@ export default function Shop() {
               cart={cart}
               activation={activation}
               skippedOffer={!!lookup?.offer && !activation}
-              onPlace={placeOrder}
+              onPlace={() => setAuthOpen(true)}
               onEdit={() => setStep(0)}
               placing={busy === "order"}
               error={error}
@@ -321,6 +325,9 @@ export default function Shop() {
           )}
         </View>
         <ProtocolPanel info={info} />
+        {authOpen && step === 3 && cart && (
+          <PayAuthSheet agent={agent} cart={cart} onApproved={placeOrder} onCancel={() => setAuthOpen(false)} auto={running} skip={skip} />
+        )}
       </KeyboardAvoidingView>
     </View>
   );

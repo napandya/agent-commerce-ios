@@ -99,7 +99,7 @@ export function getProtocol(agentId: string, step: number, ctx: ProtocolCtx): Pr
         title: "Return to cart",
         summary: `Citi sends the shopper back to the Wayfair cart in either case. Checkout then completes with ${chatgpt ? "Apple Pay" : "Google Pay"} and the Citi card.`,
         flow: ["Citi Offers", "Wayfair cart", agent],
-        points: ["Return URL carries only offer status", "Activation stays with Citi & Mastercard", "Wayfair checkout completes the order"],
+        points: ["Return URL carries only offer status", "Activation stays with Citi & Mastercard", "Biometric check, then Citi approves the payment"],
         endpoint: "POST wayfair.com/api/checkout/{cart_ref}/complete",
         payload: { cart_ref: c?.cart_ref, offer_status: ctx.activation ? "activated" : c?.offer_status ?? "no_match", wallet: chatgpt ? "apple_pay" : "google_pay" },
       };
