@@ -8,6 +8,7 @@ import { makeStyles, useTheme } from "@/src/theme";
 import { API, api, type Activation, type Cart, type Lookup, type Order, type Product } from "@/src/api";
 import { getProtocol, stepLabels } from "@/src/flow";
 import { agentFrom } from "@/src/agents";
+import { useSkipDelay } from "@/src/presenter";
 import { Stepper } from "@/src/components/Stepper";
 import { ProtocolPanel } from "@/src/components/ProtocolPanel";
 import { ChatStep, type ChatMsg } from "@/src/components/steps/ChatStep";
@@ -59,6 +60,8 @@ export default function Shop() {
   const [paused, setPaused] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [autoPrompt, setAutoPrompt] = useState<string | null>(null);
+  const [skip, setSkip] = useState(0);
+  const delay = useSkipDelay(skip);
   const setStep = (n: number) => {
     setError(null);
     setStepRaw(n);
@@ -133,20 +136,27 @@ export default function Shop() {
 
   const running = !!presenting && !paused;
   useEffect(() => {
+    const fast = delay(1) === 0;
+    const wait = (ms: number) => (fast ? 0 : ms);
     if (!running || !presenting) return;
     const sc = SCENARIOS[presenting];
     let t: ReturnType<typeof setTimeout> | undefined;
     if (step === 0) {
       const last = messages[messages.length - 1];
-      if (messages.length === 0) t = setTimeout(() => setAutoPrompt(sc.prompt), 5000);
-      else if (last?.role === "assistant" && (last.productIds || last.error) && !qty[sc.product]) t = setTimeout(() => setQty(sc.product, 1), 6000);
-      else if (qty[sc.product] && !busy) t = setTimeout(checkOffers, 5000);
+      if (messages.length === 0) t = setTimeout(() => setAutoPrompt(sc.prompt), wait(5000));
+      else if (last?.role === "assistant" && (last.productIds || last.error) && !qty[sc.product]) t = setTimeout(() => setQty(sc.product, 1), wait(6000));
+      else if (qty[sc.product] && !busy) t = setTimeout(checkOffers, wait(5000));
     } else if (step === 3 && !busy && !error) {
-      t = setTimeout(placeOrder, 7000);
+      t = setTimeout(placeOrder, wait(7000));
     }
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, presenting, step, messages, qty, busy, error]);
+  }, [running, presenting, step, messages, qty, busy, error, skip]);
+
+  const skipAhead = () => {
+    setPaused(false);
+    setSkip((n) => n + 1);
+  };
 
   const canGoBack = step > 0 && step < 4;
 
@@ -191,8 +201,20 @@ export default function Shop() {
             <Text style={styles.presenterKicker}>
               PRESENTER · {presenting === "offer" ? "OFFER" : "NO OFFER"} · {step + 1}/5
             </Text>
+            <Pressable testID="presenter-replay-button" style={styles.presenterBtn} onPress={() => startPresenter(presenting)} hitSlop={6}>
+              <Ionicons name="play-back" size={16} color={colors.onSurfaceInverse} />
+            </Pressable>
             <Pressable testID="presenter-pause-button" style={styles.presenterBtn} onPress={() => setPaused((p) => !p)} hitSlop={6}>
               <Ionicons name={paused ? "play" : "pause"} size={16} color={colors.onSurfaceInverse} />
+            </Pressable>
+            <Pressable
+              testID="presenter-skip-button"
+              style={[styles.presenterBtn, step === 4 && styles.presenterBtnOff]}
+              onPress={skipAhead}
+              disabled={step === 4}
+              hitSlop={6}
+            >
+              <Ionicons name="play-forward" size={16} color={colors.onSurfaceInverse} />
             </Pressable>
             <Pressable testID="presenter-exit-button" style={styles.presenterBtn} onPress={() => setPresenting(null)} hitSlop={6}>
               <Ionicons name="close" size={16} color={colors.onSurfaceInverse} />
@@ -205,7 +227,7 @@ export default function Shop() {
         <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
           <View style={styles.modalCard} testID="presenter-picker">
             <Text style={styles.modalTitle}>Presenter mode</Text>
-            <Text style={styles.modalSub}>Auto-plays the {agent.name} offers flow with commentary. Pause or exit any time.</Text>
+            <Text style={styles.modalSub}>Auto-plays the {agent.name} offers flow with commentary. Pause, skip ahead, replay or exit any time.</Text>
             <Pressable testID="presenter-start-offer" style={styles.modalOption} onPress={() => startPresenter("offer")}>
               <Ionicons name="pricetag" size={18} color={colors.success} />
               <View style={styles.flex}>
@@ -249,7 +271,7 @@ export default function Shop() {
               autoPrompt={running ? autoPrompt : null}
             />
           )}
-          {step === 1 && cart && <CitiSignInStep cart={cart} onVerified={() => setStep(2)} auto={running} />}
+          {step === 1 && cart && <CitiSignInStep cart={cart} onVerified={() => setStep(2)} auto={running} skip={skip} />}
           {step === 2 && cart && (
             <OffersStep
               cart={cart}
@@ -259,6 +281,7 @@ export default function Shop() {
               setActivation={setActivation}
               onReturn={() => setStep(3)}
               auto={running}
+              skip={skip}
             />
           )}
           {step === 3 && cart && (
@@ -302,6 +325,7 @@ const useStyles = makeStyles((c) => ({
   liveDotPaused: { backgroundColor: c.citiMuted },
   presenterKicker: { flex: 1, fontSize: 10, fontWeight: "800", letterSpacing: 0.8, color: c.citiMuted },
   presenterBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: c.citiCard, alignItems: "center", justifyContent: "center" },
+  presenterBtnOff: { opacity: 0.4 },
   presenterText: { fontSize: 14, lineHeight: 20, color: c.onSurfaceInverse },
   modalBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: "center", padding: 24 },
   modalCard: { backgroundColor: c.surface, borderRadius: 20, padding: 20, gap: 10 },

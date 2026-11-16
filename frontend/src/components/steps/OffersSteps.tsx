@@ -5,6 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { FadeIn, FadeInUp, ZoomIn } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { makeStyles, useTheme } from "@/src/theme";
+import { useSkipDelay } from "@/src/presenter";
 import { api, money, type Activation, type Cart, type Lookup, type Order } from "@/src/api";
 import { MastercardLogo, WalletMark, WayfairLogo } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
@@ -42,8 +43,9 @@ function CardRow({ label }: { label: string }) {
   );
 }
 
-export function CitiSignInStep({ cart, onVerified, auto }: { cart: Cart; onVerified: () => void; auto?: boolean }) {
+export function CitiSignInStep({ cart, onVerified, auto, skip = 0 }: { cart: Cart; onVerified: () => void; auto?: boolean; skip?: number }) {
   const styles = useStyles();
+  const delay = useSkipDelay(skip);
   const { colors } = useTheme();
   const [prompt, setPrompt] = useState(false);
   const [phase, setPhase] = useState<"idle" | "scanning" | "done">("idle");
@@ -68,11 +70,16 @@ export function CitiSignInStep({ cart, onVerified, auto }: { cart: Cart; onVerif
   };
 
   useEffect(() => {
-    if (!auto || !prompt || phase !== "idle") return;
-    const t = setTimeout(scan, 5000);
+    const ms = delay(5000);
+    if (!auto || phase !== "idle") return;
+    if (!prompt) {
+      if (ms === 0) setPrompt(true);
+      return;
+    }
+    const t = setTimeout(scan, ms);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, prompt, phase]);
+  }, [auto, prompt, phase, skip]);
 
   return (
     <View style={styles.root} testID="citi-signin-step">
@@ -112,12 +119,13 @@ export function CitiSignInStep({ cart, onVerified, auto }: { cart: Cart; onVerif
 const LOOKUP_STEPS = ["Cart reference received from Wayfair", "Looking up eligible offers with Mastercard Offers", "Matches returned"];
 
 export function OffersStep({
-  cart, lookup, setLookup, activation, setActivation, onReturn, auto,
+  cart, lookup, setLookup, activation, setActivation, onReturn, auto, skip = 0,
 }: {
   cart: Cart; lookup: Lookup | null; setLookup: (l: Lookup) => void;
-  activation: Activation | null; setActivation: (a: Activation) => void; onReturn: () => void; auto?: boolean;
+  activation: Activation | null; setActivation: (a: Activation) => void; onReturn: () => void; auto?: boolean; skip?: number;
 }) {
   const styles = useStyles();
+  const delay = useSkipDelay(skip);
   const { colors } = useTheme();
   const [progress, setProgress] = useState(lookup ? 3 : 0);
   const [error, setError] = useState<string | null>(null);
@@ -162,11 +170,12 @@ export function OffersStep({
   const offer = lookup?.offer;
 
   useEffect(() => {
+    const ms = delay(6500);
     if (!auto || !lookup || activating) return;
-    const t = setTimeout(lookup.offer && !activation ? activate : onReturn, 6500);
+    const t = setTimeout(lookup.offer && !activation ? activate : onReturn, ms);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, lookup, activation, activating]);
+  }, [auto, lookup, activation, activating, skip]);
 
   return (
     <View style={styles.root} testID="offers-step">

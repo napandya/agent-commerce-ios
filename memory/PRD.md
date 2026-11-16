@@ -12,6 +12,7 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 - Mock endpoints: ACP `/api/checkout_sessions` (+ `/complete`), Agent Pay `/api/agentpay/tokenize`, Citi `/api/citi/authorize` (enforces agent enabled/revoked + per-purchase limit), `/api/agents`, `/api/transactions`
 
 ## Implemented (Jun 2026)
+- Presenter controls: Replay (restart scenario), Pause/Play, Skip (fire next auto-step now, via src/presenter.ts useSkipDelay), Exit
 - Cleanup: removed ACP/UCP labels, badges and protocol fields everywhere; deleted /compare screen; Agent Activity history now Wayfair-only (no Walmart/Target)
 - ChatGPT-style chat chrome (sidebar, app picker, composer) + Presenter Mode (auto-play offer / no-offer scenarios with commentary, pause/exit)
 - App now opens straight into the ChatGPT chat surface (/ → /shop?agent=chatgpt); Citi hub moved to /home (grid icon); tap header to switch ChatGPT ↔ Gemini
