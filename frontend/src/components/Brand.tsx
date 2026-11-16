@@ -1,6 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import { makeStyles } from "@/src/theme";
 
 // Brand marks keep identical colors in every theme.
 export function MastercardLogo({ size = 22 }: { size?: number }) {
@@ -13,25 +12,6 @@ export function MastercardLogo({ size = 22 }: { size?: number }) {
           opacity: 0.9, marginLeft: -size * 0.4,
         }}
       />
-    </View>
-  );
-}
-
-export function CitiLogo({ size = 26, color = "#FFFFFF" }: { size?: number; color?: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.citiWrap} testID="citi-logo">
-      <View style={[styles.arc, { width: size * 1.4, height: size * 0.5, borderTopLeftRadius: size, borderTopRightRadius: size }]} />
-      <Text style={[styles.citi, { fontSize: size, color }]}>citi</Text>
-    </View>
-  );
-}
-
-export function InstacartMark({ label = "Instacart", dark = false }: { label?: string; dark?: boolean }) {
-  return (
-    <View style={sx.row}>
-      <View style={sx.carrot} />
-      <Text style={[sx.ic, dark && { color: "#FFFFFF" }]}>{label}</Text>
     </View>
   );
 }
@@ -51,24 +31,10 @@ export function WalletMark({ wallet, size = 16 }: { wallet: "apple" | "google"; 
   );
 }
 
-export function WalmartLogo({ size = 34 }: { size?: number }) {
+export function WayfairLogo({ size = 34 }: { size?: number }) {
   return (
-    <View style={[sx.walmart, { width: size, height: size, borderRadius: 6 }]} testID="walmart-logo">
-      <Ionicons name="sunny" size={size * 0.7} color="#FFC220" />
-    </View>
-  );
-}
-
-export function StoreLogo({ store, size = 34 }: { store: "walmart" | "target"; size?: number }) {
-  return store === "walmart" ? <WalmartLogo size={size} /> : <TargetLogo size={size} />;
-}
-
-export function TargetLogo({ size = 34 }: { size?: number }) {
-  return (
-    <View style={[sx.target, { width: size, height: size, borderRadius: 6 }]}>
-      <View style={[sx.ring, { width: size * 0.7, height: size * 0.7, borderRadius: size }]}>
-        <View style={{ width: size * 0.26, height: size * 0.26, borderRadius: size, backgroundColor: "#CC0000" }} />
-      </View>
+    <View style={[sx.wayfair, { width: size, height: size, borderRadius: size * 0.22 }]} testID="wayfair-logo">
+      <Ionicons name="home" size={size * 0.6} color="#FFFFFF" />
     </View>
   );
 }
@@ -77,16 +43,5 @@ const sx = StyleSheet.create({
   wallet: { flexDirection: "row", alignItems: "center", gap: 2, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   walletGoogle: { backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DADCE0" },
   walletText: { fontWeight: "600" },
-  row: { flexDirection: "row", alignItems: "center", gap: 6 },
-  carrot: { width: 8, height: 12, borderRadius: 4, backgroundColor: "#FF7009" },
-  ic: { fontSize: 15, fontWeight: "700", color: "#003A2B" },
-  target: { backgroundColor: "#CC0000", alignItems: "center", justifyContent: "center" },
-  walmart: { backgroundColor: "#0071DC", alignItems: "center", justifyContent: "center" },
-  ring: { backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
+  wayfair: { backgroundColor: "#7B189F", alignItems: "center", justifyContent: "center" },
 });
-
-const useStyles = makeStyles((c) => ({
-  citiWrap: { alignItems: "center" },
-  arc: { borderTopWidth: 2.5, borderLeftWidth: 0, borderRightWidth: 0, borderColor: c.citiRed, marginBottom: -6, marginLeft: 6 },
-  citi: { fontWeight: "700", letterSpacing: -0.5 },
-}));

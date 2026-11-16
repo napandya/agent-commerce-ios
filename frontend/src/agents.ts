@@ -6,11 +6,11 @@ export type AgentConfig = {
   protocol: string;
   tags: string[];
   merchant: string;
-  store: "walmart" | "target";
   wallet: "apple" | "google";
   walletName: string;
   storeLabel: string;
   subtitle: string;
+  model: string;
   suggestions: string[];
 };
 
@@ -19,34 +19,34 @@ export const AGENT_CONFIG: Record<AgentId, AgentConfig> = {
     id: "chatgpt",
     name: "ChatGPT",
     protocol: "ACP",
-    tags: ["ACP", "Agent Pay"],
-    merchant: "Walmart",
-    store: "walmart",
+    tags: ["ACP"],
+    merchant: "Wayfair",
     wallet: "apple",
     walletName: "Apple Pay",
-    storeLabel: "Walmart",
-    subtitle: "ChatGPT → Walmart → Apple Pay → Citi",
+    storeLabel: "Wayfair",
+    subtitle: "ChatGPT → Wayfair → Citi Offers",
+    model: "GPT-5.4",
     suggestions: [
-      "Find me men's sandals in size 12 at Walmart",
-      "Sandals and socks for a beach trip, size 12",
-      "Add 2 packs of no-show socks too",
+      "I need a big sectional for my living room",
+      "Show me a velvet sofa in a bold color",
+      "Something small for my apartment, under $400",
     ],
   },
   gemini: {
     id: "gemini",
     name: "Gemini",
-    protocol: "UCP + AP2",
-    tags: ["UCP", "AP2", "Agent Pay"],
-    merchant: "Target",
-    store: "target",
+    protocol: "UCP",
+    tags: ["UCP"],
+    merchant: "Wayfair",
     wallet: "google",
     walletName: "Google Pay",
-    storeLabel: "Target",
-    subtitle: "Gemini → Target (UCP) → Google Pay → Citi",
+    storeLabel: "Wayfair",
+    subtitle: "Gemini → Wayfair → Citi Offers",
+    model: "Gemini 3 Flash",
     suggestions: [
-      "Help me pack for the beach — sandals and swim shorts",
-      "Find size 12 sandals in black at Target",
-      "Add a 6-pack of socks to my cart",
+      "Help me find a leather sofa on sale",
+      "What's a good sofa for a family of four?",
+      "Show me a compact loveseat",
     ],
   },
 };

@@ -82,6 +82,9 @@ export default function Activity() {
                 <Text style={styles.meta} numberOfLines={1}>via {item.agent_name} · {item.item}</Text>
                 <Text style={styles.meta}>{new Date(item.created_at).toLocaleString()}</Text>
                 {item.reason ? <Text style={[styles.meta, { color: colors.error }]}>{item.reason}</Text> : null}
+                {item.statement_credit ? (
+                  <Text style={[styles.meta, styles.credit]} testID={`txn-credit-${item.id}`}>Citi offer · ${item.statement_credit.toFixed(2)} credit pending</Text>
+                ) : null}
               </View>
               <View style={styles.right}>
                 <Text style={[styles.amount, item.status === "declined" && styles.strike]}>{money(item.amount)}</Text>
@@ -121,4 +124,5 @@ const useStyles = makeStyles((c) => ({
   strike: { textDecorationLine: "line-through", color: c.muted },
   badge: { fontSize: 11, fontWeight: "700", borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden" },
   pts: { fontSize: 11, fontWeight: "600", color: c.onBrandTertiary },
+  credit: { color: c.success, fontWeight: "600" },
 }));

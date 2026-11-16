@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 4 (Wayfair furniture shopping + Citi Offers / Mastercard Offers statement-credit pilot). Backend: 14/14 pytest pass (new tests/test_wayfair_offers.py): 4 products, real LLM SSE streaming for chatgpt (gpt-5.4) and gemini (gemini-3-flash-preview) both emit [[product:id]] tags, cart create/validation (404 bad product, 422 empty/invalid agent), eligibility per sofa (sectional $125, velvet $70, loveseat no-match '$500+' reason, clearance leather 'Clearance items are excluded'), credit cap $150 (2x sectional), activate 400 before lookup / wrong offer id / not eligible, activation idempotent, PATCH resets offer/activation, place_order idempotent with statement_credit, PATCH after order 400, txn persisted, insights.statement_credits delta correct, 403 when chatgpt paused. Frontend (390x844): home has no Citi logo (0 citi-logo testIDs, 0 <img>), start buttons route to /shop?agent=chatgpt|gemini, compare has 5 rows. ChatGPT eligible path E2E: suggestion -> product-add-wf-arnav-sectional -> check offers -> citi-cart-reference -> faceid -> lookup progress -> offer-credit $125.00 -> Activate -> offer-activated -> cart-offer-activated -> place order -> done-credit '$125.00 back...' -> activity txn-credit-*. Gemini no-offer path via chat-input 'leather sofa on sale' -> clearance reason, no activate button, cart-no-offer, Google Pay. Back x3 to chat, qty +1 and LLM [[add]] auto-added velvet -> re-check PATCHed same cart and re-ran lookup ($70 on $699.99 eligible spend). Order without activation -> no done-credit, 'Citi offer: None'. Loveseat no-offer path (ChatGPT) reason '$500+ ... $389.99'. Agent Controls UI toggle pauses chatgpt -> place-order-error 'ChatGPT is paused in Citi Agent Controls'; re-enable -> order succeeds. Protocol panel titles per step verified for both agents; sheet open/close/backdrop work; restart resets flow. Fixed one React duplicate-key warning in ProtocolPanel. Only minor issues remain.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/carts/{ref}/place_order", "issue": "Agent spending limit (agents.limit) is not enforced - only enabled/revoked is checked. E.g. a $2,202.78 Gemini order succeeded with limit $2000. Confirm whether limit should block orders."},
+      {"endpoint": "tests", "issue": "Legacy test files /app/backend/tests/test_citi_agentic_commerce.py and test_multi_cart_insights.py target removed endpoints (checkout_sessions/agentpay/citi authorize) and will fail; delete or archive them."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ChatStep assistant message", "issue": "LLM markdown is rendered raw: '**Wade Logan Arnav 3-Piece Sectional Sofa**' and '**\"Check Citi offers\"**' show literal asterisks. Either render basic **bold** or instruct the LLM (system_prompt) to reply in plain text without markdown. Reference: /app/frontend/src/components/steps/ChatStep.tsx:16", "testID": "chat-assistant-message", "priority": "MEDIUM"},
+      {"component": "ProtocolPanel", "issue": "FIXED: duplicate React key on step 2 flow ['Citi Offers','Mastercard Offers','Citi Offers'] (key={f}) caused a red 'Encountered two children with the same key' dev toast. Changed to key={`${i}-${f}`}.", "testID": "protocol-panel-sheet", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wayfair cart (step 4)", "issues": ["When an offer was eligible but NOT activated, the banner just says 'No Citi offer applied to this cart' - consider hinting that an eligible offer was skipped (go back to activate)."]},
+      {"screen": "Shop header back", "issues": ["Returning from Wayfair cart to chat needs 3 back taps (cart -> offers -> sign in -> chat); consider jumping back to chat from cart/offers."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_wayfair_offers.py", "/app/test_reports/pytest/pytest_results_iter4.xml"],
+  "action_items": [
+    "Strip/render markdown in chat assistant messages (raw ** visible) - ChatStep.tsx or add 'no markdown' rule to system_prompt in server.py",
+    "Decide whether agent spending limit should be enforced in place_order (currently ignored)",
+    "Remove obsolete legacy backend tests (test_citi_agentic_commerce.py, test_multi_cart_insights.py)"
+  ],
+  "critical_code_review_comments": [
+    "place_order ignores agents.limit (server.py:333-335).",
+    "checkOffers always PATCHes the cart even when items unchanged, which wipes an existing activation; acceptable per spec (re-runs lookup) but user loses activation if they just go back and re-check without changes.",
+    "Chat messages for UI sessions persist in chat_messages indefinitely (no TTL)."
+  ],
+  "updated_files": ["/app/frontend/src/components/ProtocolPanel.tsx", "/app/backend/tests/test_wayfair_offers.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% of requested flows; 1 medium cosmetic bug (raw markdown)"},
+  "seed_data_creation": "None kept. Deleted the 13 carts and 6 non-seed transactions created by this run (by cart_ref), TEST_ chat sessions removed; agents restored to chatgpt enabled 2000, gemini enabled 2000, perplexity disabled 100. seed_* transactions untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Public URL is EXPO_PUBLIC_BACKEND_URL in frontend/.env (no EXPO_BACKEND_URL key) - export EXPO_BACKEND_URL=<that> before pytest; run with -o addopts=''. Created cart refs are appended to /tmp/created_cart_refs.txt; cleanup script /tmp/cleanup_iter4.py. Container clock is Nov 2026. FaceID needs tap on faceid-popup. LLM replies 3-15s; wait for product-add-* then ~2s. Gemini honors [[add:id:qty]] (auto-adds to cart widget).",
+  "rca_of_issue": "Duplicate-key warning: flow.ts step 2 flow array repeats 'Citi Offers' and ProtocolPanel used the string as key."
+}

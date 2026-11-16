@@ -5,7 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { FadeInUp } from "react-native-reanimated";
 import { makeStyles, useTheme } from "@/src/theme";
 import { money, streamChat, type Product } from "@/src/api";
-import { StoreLogo, WalletMark } from "@/src/components/Brand";
+import { WalletMark, WayfairLogo } from "@/src/components/Brand";
 import type { AgentConfig } from "@/src/agents";
 
 export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; productIds?: string[]; error?: boolean };
@@ -13,7 +13,7 @@ export type ChatMsg = { id: string; role: "user" | "assistant"; text: string; pr
 const TAGS = /\[\[(product|add):([a-z0-9-]+)(?::(\d+))?\]\]/gi;
 
 function clean(text: string) {
-  return text.replace(/\[\[[^\]]*\]\]/g, "").replace(/\[\[[^\]]*$/, "").trim();
+  return text.replace(/\[\[[^\]]*\]\]/g, "").replace(/\[\[[^\]]*$/, "").replace(/\*\*|__/g, "").trim();
 }
 
 type Props = {
@@ -86,8 +86,8 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
             <Text style={styles.emptyTitle}>{gemini ? "Hello, Pat. What should we shop for?" : "What are you shopping for?"}</Text>
             <Text style={styles.emptySub}>
               {gemini
-                ? "Gemini can check out directly with Target using UCP and Google Pay."
-                : "Walmart is connected. Ask ChatGPT to find something and pay with Apple Pay."}
+                ? "Gemini can shop Wayfair directly using UCP."
+                : "The Wayfair app is connected. Ask ChatGPT to find a sofa."}
             </Text>
             {agent.suggestions.map((s, i) => (
               <Pressable key={s} testID={`chat-suggestion-${i}`} style={styles.suggestion} onPress={() => send(s)}>
@@ -123,7 +123,7 @@ export function ChatStep({ agent, sessionId, messages, setMessages, products, ca
       </ScrollView>
       <View style={styles.composer}>
         <View style={styles.chip}>
-          <View style={styles.chipRow}><StoreLogo store={agent.store} size={14} /><Text style={styles.chipText}>{agent.storeLabel}</Text></View>
+          <View style={styles.chipRow}><WayfairLogo size={14} /><Text style={styles.chipText}>{agent.storeLabel}</Text></View>
         </View>
         <View style={styles.inputRow}>
           <TextInput
@@ -185,7 +185,7 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
     <Animated.View entering={FadeInUp.duration(260)} style={styles.widget} testID="cart-widget">
       <View style={styles.wHead}>
         <View style={styles.chipRow}>
-          <StoreLogo store={agent.store} size={20} />
+          <WayfairLogo size={20} />
           <Text style={styles.wTitle}>{agent.storeLabel}</Text>
           <Text style={[styles.ucpBadge, !gemini && styles.acpBadge]}>{gemini ? "UCP" : "ACP"} checkout</Text>
         </View>
@@ -195,10 +195,10 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
         <WalletMark wallet={agent.wallet} size={14} />
         <Text style={[styles.wFee, styles.flex]}>Pay with {agent.walletName} using your Citi Mastercard ···· 4680</Text>
       </View>
-      <View style={styles.points} testID="widget-points-banner">
-        <Ionicons name="star" size={14} color={colors.onBrandTertiary} />
+      <View style={styles.points} testID="widget-offers-hint">
+        <Ionicons name="pricetag" size={14} color={colors.onBrandTertiary} />
         <Text style={styles.pointsText}>
-          Earning <Text style={styles.bold}>5x Citi ThankYou® Points</Text> using your Citi Custom Cash card
+          Have a Citi card? <Text style={styles.bold}>Check Citi offers</Text> before you place the order
         </Text>
       </View>
       {entries.map(([id, q]) => {
@@ -218,8 +218,8 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
                 <Ionicons name={q === 1 ? "trash-outline" : "remove"} size={16} color={colors.onSurface} />
               </Pressable>
               <Text style={styles.qtyText} testID={`cart-qty-${id}`}>{q}</Text>
-              <Pressable testID={`cart-increase-${id}`} style={styles.stepBtn} onPress={() => setQty(id, q + 1)} disabled={q >= 10} hitSlop={4}>
-                <Ionicons name="add" size={16} color={q >= 10 ? colors.muted : colors.onSurface} />
+              <Pressable testID={`cart-increase-${id}`} style={styles.stepBtn} onPress={() => setQty(id, q + 1)} disabled={q >= 5} hitSlop={4}>
+                <Ionicons name="add" size={16} color={q >= 5 ? colors.muted : colors.onSurface} />
               </Pressable>
             </View>
           </View>
@@ -227,7 +227,7 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
       })}
       <View style={styles.wFoot}>
         <View>
-          <Text style={styles.wFee}>Delivery by 11:45am</Text>
+          <Text style={styles.wFee}>Free delivery in 5–7 days</Text>
           <Text style={styles.wFee}>10848 South Bell Avenue</Text>
         </View>
         <View style={styles.right}>
@@ -236,12 +236,12 @@ function CartWidget({ agent, products, cart, setQty, onCheckout, loading, disabl
         </View>
       </View>
       <Pressable
-        testID="widget-checkout-button"
+        testID="check-offers-button"
         style={[styles.checkout, gemini && styles.checkoutGemini, disabled && styles.sendOff]}
         onPress={onCheckout}
         disabled={loading || disabled}
       >
-        {loading ? <ActivityIndicator color={colors.onBrandSecondary} /> : <Text style={styles.checkoutText}>{gemini ? "Buy with Gemini" : "Checkout"}</Text>}
+        {loading ? <ActivityIndicator color={colors.onBrandSecondary} /> : <Text style={styles.checkoutText}>Check Citi offers</Text>}
       </Pressable>
     </Animated.View>
   );

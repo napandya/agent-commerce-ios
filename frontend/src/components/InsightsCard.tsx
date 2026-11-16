@@ -47,7 +47,7 @@ export function InsightsCard({ refreshKey }: { refreshKey: number }) {
           <View style={styles.stats}>
             <Stat label="Purchases" value={String(data.purchases)} testID="insights-purchases" />
             <Stat label="Declined" value={String(data.declined)} testID="insights-declined" />
-            <Stat label="Points" value={`+${data.points_earned.toLocaleString()}`} testID="insights-points" />
+            <Stat label="Offer credits" value={money(data.statement_credits)} testID="insights-credits" />
           </View>
           {data.purchases === 0 ? (
             <Text style={styles.empty}>No agent purchases this month.</Text>

@@ -3,45 +3,44 @@ import { fetch as expoFetch } from "expo/fetch";
 export const API = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
 
 export type Product = {
-  id: string; name: string; variant: string; short: string; price: number;
-  compare_at: number; image: string; retailer: string;
+  id: string; brand: string; name: string; variant: string; short: string; price: number;
+  compare_at: number; clearance: boolean; image: string; retailer: string;
 };
-export type Totals = {
-  subtotal: number; delivery_fee: number; service_fee: number; bag_fee: number;
-  tip: number; tax: number; total: number;
-};
+export type Totals = { subtotal: number; shipping: number; tax: number; total: number };
 export type LineItem = { product: Product; quantity: number; line_total: number };
 export type CartItem = { product_id: string; quantity: number };
-export type CheckoutSession = {
-  id: string; status: string; protocol: string; merchant: string; agent_id: string;
-  line_items: LineItem[]; summary: string; totals: Totals; currency: string;
-  fulfillment: { type: string; address: string; window: string };
-  card: { brand: string; last4: string; product: string }; created_at: string;
+export type Offer = {
+  id: string; title: string; headline: string; program: string; funded_by: string;
+  min_spend: number; rate: number; max_credit: number; terms: string[];
+  credit: number; eligible_spend: number; mastercard_request_id: string;
 };
-export type AgentToken = {
-  agentic_token: string; token_pan_last4: string; funding_pan_last4: string; agent_id: string;
-  scope: { merchant: string; max_amount: number; currency: string; single_use: boolean };
-  cryptogram: string; expires_in: number;
+export type Activation = { activation_id: string; offer_id: string; card_last4: string; credit: number; activated_at: string };
+export type Cart = {
+  cart_ref: string; status: string; retailer: string; agent_id: string; protocol: string; wallet: string;
+  line_items: LineItem[]; summary: string; totals: Totals;
+  offer_status: "unchecked" | "eligible" | "no_match" | "activated"; offer: Offer | null; activation: Activation | null;
 };
-export type Txn = {
-  id: string; checkout_session_id: string; merchant: string; agent_id: string; agent_name: string;
-  item: string; item_full: string; amount: number; card_last4: string;
-  status: "approved" | "declined" | "completed"; reason: string | null; auth_code: string | null;
-  points_earned: number; payment_option: string | null; order_id?: string; created_at: string;
+export type Lookup = {
+  cart_ref: string; eligible: boolean; offer: Offer | null; reason: string | null;
+  card: { brand: string; last4: string; product: string }; mastercard_request_id: string; already_activated: boolean;
 };
 export type Order = {
-  order_id: string; status: string; points_earned: number; points_redeemed: number;
-  payment_option: PaymentOption; flex_monthly: number | null; eta: string; amount: number; transaction_id: string;
+  order_id: string; amount: number; wallet: string; card_last4: string; statement_credit: number;
+  offer_activated: boolean; points_earned: number; eta: string;
+};
+export type Txn = {
+  id: string; merchant: string; agent_id: string; agent_name: string; item: string; item_full: string;
+  amount: number; card_last4: string; status: "approved" | "declined" | "completed"; reason: string | null;
+  points_earned: number; statement_credit?: number; order_id?: string; created_at: string;
 };
 export type Agent = {
   id: string; name: string; provider: string; protocol: string; enabled: boolean;
   limit: number; revoked: boolean; connected_at: string;
 };
-export type PaymentOption = "card" | "flex_pay" | "points";
 export type Breakdown = { name: string; amount: number; count: number };
 export type Insights = {
   month: string; total_spent: number; purchases: number; declined: number; points_earned: number;
-  by_agent: Breakdown[]; by_merchant: Breakdown[];
+  statement_credits: number; by_agent: Breakdown[]; by_merchant: Breakdown[];
 };
 
 async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -59,13 +58,12 @@ async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> 
 }
 
 export const api = {
-  createCheckout: (items: CartItem[], agent_id: string) => req<CheckoutSession>("/checkout_sessions", "POST", { items, tip: 5, agent_id }),
-  updateCheckout: (sid: string, body: { items?: CartItem[]; tip?: number }) => req<CheckoutSession>(`/checkout_sessions/${sid}`, "PATCH", body),
+  createCart: (agent_id: string, items: CartItem[]) => req<Cart>("/carts", "POST", { agent_id, items }),
+  updateCart: (ref: string, items: CartItem[]) => req<Cart>(`/carts/${ref}`, "PATCH", { items }),
+  lookupOffers: (cart_ref: string) => req<Lookup>("/citi/offers/lookup", "POST", { cart_ref }),
+  activateOffer: (cart_ref: string, offer_id: string) => req<Activation>("/citi/offers/activate", "POST", { cart_ref, offer_id }),
+  placeOrder: (ref: string) => req<Order>(`/carts/${ref}/place_order`, "POST"),
   insights: (month: string) => req<Insights>(`/insights?month=${month}`),
-  tokenize: (checkout_session_id: string) => req<AgentToken>("/agentpay/tokenize", "POST", { checkout_session_id }),
-  authorize: (checkout_session_id: string, decision: "approve" | "decline") =>
-    req<Txn>("/citi/authorize", "POST", { checkout_session_id, decision }),
-  complete: (sid: string, payment_option: PaymentOption) => req<Order>(`/checkout_sessions/${sid}/complete`, "POST", { payment_option }),
   transactions: () => req<Txn[]>("/transactions"),
   agents: () => req<Agent[]>("/agents"),
   updateAgent: (id: string, body: Partial<Pick<Agent, "enabled" | "limit">>) => req<Agent>(`/agents/${id}`, "PATCH", body),

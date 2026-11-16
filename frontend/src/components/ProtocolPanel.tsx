@@ -5,7 +5,7 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles, useTheme } from "@/src/theme";
-import type { ProtocolInfo } from "@/src/protocols";
+import type { ProtocolInfo } from "@/src/flow";
 
 export function ProtocolPanel({ info }: { info: ProtocolInfo }) {
   const styles = useStyles();
@@ -57,7 +57,7 @@ export function ProtocolPanel({ info }: { info: ProtocolInfo }) {
               <Text style={styles.section}>Message flow</Text>
               <View style={styles.flow}>
                 {info.flow.map((f, i) => (
-                  <View key={f} style={styles.flowItem}>
+                  <View key={`${i}-${f}`} style={styles.flowItem}>
                     <Text style={styles.flowNode}>{f}</Text>
                     {i < info.flow.length - 1 && <Ionicons name="arrow-forward" size={14} color={colors.muted} />}
                   </View>

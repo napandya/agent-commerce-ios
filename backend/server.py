@@ -29,12 +29,11 @@ EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 
 INDEXES: dict[str, list[IndexModel]] = {
     "chat_messages": [IndexModel([("session_id", ASCENDING), ("created_at", ASCENDING)], name="session_created")],
-    "checkout_sessions": [IndexModel([("id", ASCENDING)], name="id", unique=True)],
+    "carts": [IndexModel([("cart_ref", ASCENDING)], name="cart_ref", unique=True)],
     "transactions": [
         IndexModel([("id", ASCENDING)], name="id", unique=True),
         IndexModel([("created_at", DESCENDING)], name="created_desc"),
-        IndexModel([("checkout_session_id", ASCENDING)], name="checkout_session_id"),
-    ],
+            ],
     "agents": [IndexModel([("id", ASCENDING)], name="id", unique=True)],
 }
 
@@ -53,137 +52,79 @@ def now_iso() -> str:
 
 
 # ---------------------------------------------------------------------------
-# Mock catalogs (Walmart feed via ACP for ChatGPT, Target via UCP for Gemini)
+# Mock Wayfair catalog — Citi offer eligibility depends on the sofa
 # ---------------------------------------------------------------------------
+IMG = "https://images.unsplash.com/{}?crop=entropy&cs=srgb&fm=jpg&q=85&w=400"
 PRODUCTS = {
-    "gf-saul-taupe": {
-        "id": "gf-saul-taupe",
-        "name": "Goodfellow & Co Men's Saul Suede Two Band Sandals",
-        "variant": "Size 12 — Taupe",
-        "short": "Size 12 Sandals",
-        "price": 29.99,
-        "compare_at": 45.00,
-        "image": "https://images.unsplash.com/photo-1585120824848-8a5cd41493d2?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Target",
+    "wf-arnav-sectional": {
+        "id": "wf-arnav-sectional", "brand": "Wade Logan", "name": "Wade Logan Arnav 3-Piece Sectional Sofa",
+        "variant": "112\" — Charcoal Gray", "short": "Arnav Sectional", "price": 1249.99, "compare_at": 1599.99,
+        "clearance": False, "image": IMG.format("photo-1555041469-a586c61ea9bc"), "retailer": "Wayfair",
     },
-    "gf-saul-black": {
-        "id": "gf-saul-black",
-        "name": "Goodfellow & Co Men's Saul Suede Two Band Sandals",
-        "variant": "Size 12 — Black",
-        "short": "Size 12 Sandals",
-        "price": 29.99,
-        "compare_at": 45.00,
-        "image": "https://images.unsplash.com/photo-1603487742131-4160ec999306?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Target",
+    "wf-etta-velvet": {
+        "id": "wf-etta-velvet", "brand": "Etta Avenue", "name": "Etta Avenue Celeste Velvet Sofa",
+        "variant": "84\" — Emerald Green", "short": "Celeste Velvet Sofa", "price": 699.99, "compare_at": 899.99,
+        "clearance": False, "image": IMG.format("photo-1493663284031-b7e3aefcae8e"), "retailer": "Wayfair",
     },
-    "gf-slide-brown": {
-        "id": "gf-slide-brown",
-        "name": "Goodfellow & Co Men's Leather Slide Sandals",
-        "variant": "Size 12 — Brown",
-        "short": "Size 12 Slides",
-        "price": 34.99,
-        "compare_at": 40.00,
-        "image": "https://images.unsplash.com/photo-1562273138-f46be4ebdf33?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Target",
+    "wf-zipcode-loveseat": {
+        "id": "wf-zipcode-loveseat", "brand": "Zipcode Design", "name": "Zipcode Design Mila Loveseat",
+        "variant": "62\" — Oatmeal Beige", "short": "Mila Loveseat", "price": 389.99, "compare_at": 449.99,
+        "clearance": False, "image": IMG.format("photo-1550254478-ead40cc54513"), "retailer": "Wayfair",
     },
-    "gf-socks-6pk": {
-        "id": "gf-socks-6pk",
-        "name": "Goodfellow & Co Men's No-Show Socks 6pk",
-        "variant": "Size 7-12 — Assorted",
-        "short": "No-Show Socks 6pk",
-        "price": 12.00,
-        "compare_at": 15.00,
-        "image": "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Target",
-    },
-    "gf-swim-navy": {
-        "id": "gf-swim-navy",
-        "name": "Goodfellow & Co Men's 7\" Swim Shorts",
-        "variant": "Size L — Navy",
-        "short": "Swim Shorts",
-        "price": 20.00,
-        "compare_at": 25.00,
-        "image": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Target",
-    },
-    "wm-george-sandal-brown": {
-        "id": "wm-george-sandal-brown",
-        "name": "George Men's Faux Leather Two Band Sandals",
-        "variant": "Size 12 — Brown",
-        "short": "Size 12 Sandals",
-        "price": 19.98,
-        "compare_at": 24.98,
-        "image": "https://images.unsplash.com/photo-1585120824848-8a5cd41493d2?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Walmart",
-    },
-    "wm-george-slide-black": {
-        "id": "wm-george-slide-black",
-        "name": "George Men's Comfort Slide Sandals",
-        "variant": "Size 12 — Black",
-        "short": "Size 12 Slides",
-        "price": 14.97,
-        "compare_at": 17.97,
-        "image": "https://images.unsplash.com/photo-1603487742131-4160ec999306?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Walmart",
-    },
-    "wm-aw-socks-6pk": {
-        "id": "wm-aw-socks-6pk",
-        "name": "Athletic Works Men's Low Cut Socks 6pk",
-        "variant": "Size 6-12 — White",
-        "short": "Low Cut Socks 6pk",
-        "price": 9.97,
-        "compare_at": 11.97,
-        "image": "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Walmart",
-    },
-    "wm-george-swim-blue": {
-        "id": "wm-george-swim-blue",
-        "name": "George Men's 7\" Swim Trunks",
-        "variant": "Size L — Blue",
-        "short": "Swim Trunks",
-        "price": 12.98,
-        "compare_at": 15.98,
-        "image": "https://images.unsplash.com/photo-1565084888279-aca607ecce0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=400",
-        "retailer": "Walmart",
+    "wf-lark-leather": {
+        "id": "wf-lark-leather", "brand": "Lark Manor", "name": "Lark Manor Haddon Leather Sofa (Clearance)",
+        "variant": "86\" — Cognac", "short": "Haddon Leather Sofa", "price": 649.00, "compare_at": 1099.00,
+        "clearance": True, "image": IMG.format("photo-1540574163026-643ea20ade25"), "retailer": "Wayfair",
     },
 }
 
 AGENT_JOURNEYS = {
-    "chatgpt": {"name": "ChatGPT", "app": "Walmart's ACP checkout inside ChatGPT (paid with Apple Pay)", "merchant": "Walmart",
-                "protocol": "ACP 2025-09-29", "widget": "Walmart cart", "wallet": "Apple Pay"},
-    "gemini": {"name": "Gemini", "app": "Target's UCP checkout inside Gemini (paid with Google Pay)", "merchant": "Target",
-               "protocol": "UCP 2026-01 + AP2", "widget": "Target cart", "wallet": "Google Pay"},
+    "chatgpt": {"name": "ChatGPT", "app": "the Wayfair app inside ChatGPT (Agentic Commerce Protocol)",
+                "protocol": "ACP", "model": ("openai", "gpt-5.4"), "wallet": "Apple Pay"},
+    "gemini": {"name": "Gemini", "app": "Wayfair's Universal Commerce Protocol checkout inside Gemini",
+               "protocol": "UCP", "model": ("gemini", "gemini-3-flash-preview"), "wallet": "Google Pay"},
 }
 
-DELIVERY_FEE = 7.99
-BAG_FEE = 0.15
-TAX_RATE = 0.13271
-POINTS_PER_DOLLAR = 5
+OFFER = {
+    "id": "mco_wayfair_pilot_10",
+    "title": "10% back at Wayfair",
+    "headline": "Get 10% back as a statement credit, up to $150",
+    "program": "Retailer-wide statement credit pilot",
+    "funded_by": "Wayfair via Mastercard Offers",
+    "min_spend": 500.0, "rate": 0.10, "max_credit": 150.0,
+    "terms": [
+        "Spend $500+ on eligible Wayfair purchases in one order",
+        "Clearance and open-box items are excluded",
+        "Credit posts to your statement within 5 business days of shipping",
+        "Valid for 30 days after activation · one use per card",
+    ],
+}
+
+TAX_RATE = 0.1025
+POINTS_PER_DOLLAR = 1
 CARD = {"brand": "Mastercard", "last4": "4680", "product": "Citi Custom Cash® Card"}
 DEFAULT_AGENTS = [
-    {"id": "chatgpt", "name": "ChatGPT", "provider": "OpenAI", "protocol": "ACP", "enabled": True, "limit": 250.0},
-    {"id": "gemini", "name": "Gemini", "provider": "Google", "protocol": "UCP / AP2", "enabled": True, "limit": 150.0},
+    {"id": "chatgpt", "name": "ChatGPT", "provider": "OpenAI", "protocol": "ACP", "enabled": True, "limit": 2000.0},
+    {"id": "gemini", "name": "Gemini", "provider": "Google", "protocol": "UCP", "enabled": True, "limit": 2000.0},
     {"id": "perplexity", "name": "Perplexity", "provider": "Perplexity AI", "protocol": "Agent Pay", "enabled": False, "limit": 100.0},
 ]
-
-def catalog_json(retailer: str) -> str:
-    return json.dumps([{k: p[k] for k in ("id", "name", "variant", "price")} for p in PRODUCTS.values() if p["retailer"] == retailer])
+CATALOG_JSON = json.dumps([{k: p[k] for k in ("id", "name", "variant", "price", "clearance")} for p in PRODUCTS.values()])
 
 
 def system_prompt(agent_id: str, cart: list) -> str:
     j = AGENT_JOURNEYS.get(agent_id, AGENT_JOURNEYS["chatgpt"])
     cart_txt = ", ".join(f"{c.quantity}x {c.product_id}" for c in cart) or "empty"
-    return f"""You are {j['name']} using {j['app']} to help a Citi cardholder shop at {j['merchant']}.
-Be concise (2-4 short sentences), friendly, and practical.
-Available {j['merchant']} products (only these are in stock, delivering to 10848 South Bell Avenue, Chicago):
-{catalog_json(j['merchant'])}
+    return f"""You are {j['name']} using {j['app']} to help a Citi cardholder shop for furniture at Wayfair.
+Be concise (2-4 short sentences), warm, and practical. Reply in plain text only — no markdown, asterisks or bullet symbols.
+Available Wayfair sofas (only these are in stock, delivering to 10848 South Bell Avenue, Chicago):
+{CATALOG_JSON}
 Current cart: {cart_txt}
 Rules:
 - When recommending products, put one tag per product on its own final lines: [[product:<id>]] (max 3).
 - When the user explicitly asks to add an item or change its quantity, add a tag [[add:<id>:<total quantity>]]; use quantity 0 to remove.
-- Mention that paying with the Citi Custom Cash card earns 5x Citi ThankYou Points when recommending.
-- Tell the user they can adjust quantities and tap Checkout in the {j['widget']}.
-- For unrelated requests, steer politely back to shopping. Never invent other products."""
+- Tell the user they can tap "Check Citi offers" in the Wayfair cart to see if a Citi card offer applies before buying.
+- Never promise an offer or quote offer amounts — Citi decides eligibility.
+- For unrelated requests, steer politely back to furniture shopping. Never invent other products."""
 
 
 # ---------------------------------------------------------------------------
@@ -191,38 +132,32 @@ Rules:
 # ---------------------------------------------------------------------------
 class LineItemIn(BaseModel):
     product_id: str
-    quantity: int = Field(default=1, ge=1, le=10)
+    quantity: int = Field(default=1, ge=1, le=5)
 
 
 class ChatRequest(BaseModel):
     session_id: str
     message: str
-    agent_id: str = "chatgpt"
+    agent_id: Literal["chatgpt", "gemini"] = "chatgpt"
     cart: List[LineItemIn] = []
 
 
-class CheckoutCreate(BaseModel):
+class CartCreate(BaseModel):
+    agent_id: Literal["chatgpt", "gemini"]
     items: List[LineItemIn] = Field(min_length=1, max_length=10)
-    tip: float = Field(default=5.0, ge=0, le=100)
-    agent_id: str = "chatgpt"
 
 
-class CheckoutUpdate(BaseModel):
-    items: Optional[List[LineItemIn]] = Field(default=None, min_length=1, max_length=10)
-    tip: Optional[float] = Field(default=None, ge=0, le=100)
+class CartUpdate(BaseModel):
+    items: List[LineItemIn] = Field(min_length=1, max_length=10)
 
 
-class TokenizeRequest(BaseModel):
-    checkout_session_id: str
+class CartRef(BaseModel):
+    cart_ref: str
 
 
-class AuthorizeRequest(BaseModel):
-    checkout_session_id: str
-    decision: Literal["approve", "decline"]
-
-
-class CompleteRequest(BaseModel):
-    payment_option: Literal["card", "flex_pay", "points"] = "card"
+class ActivateRequest(BaseModel):
+    cart_ref: str
+    offer_id: str
 
 
 class AgentUpdate(BaseModel):
@@ -230,12 +165,12 @@ class AgentUpdate(BaseModel):
     limit: Optional[float] = Field(default=None, ge=0, le=10000)
 
 
-def build_lines(items: List[LineItemIn], retailer: str) -> list:
+def build_lines(items: List[LineItemIn]) -> list:
     lines = []
     for it in items:
         p = PRODUCTS.get(it.product_id)
-        if not p or p["retailer"] != retailer:
-            raise HTTPException(404, f"Product not found at {retailer}: {it.product_id}")
+        if not p:
+            raise HTTPException(404, f"Product not found at Wayfair: {it.product_id}")
         lines.append({"product": p, "quantity": it.quantity, "line_total": round(p["price"] * it.quantity, 2)})
     return lines
 
@@ -246,15 +181,24 @@ def summarize(lines: list) -> str:
     return label if len(lines) == 1 else f"{label} + {len(lines) - 1} more"
 
 
-def compute_totals(lines: list, tip: float) -> dict:
+def compute_totals(lines: list) -> dict:
     subtotal = round(sum(l["line_total"] for l in lines), 2)
-    service = round(max(2.50, subtotal * 0.04), 2)
     tax = round(subtotal * TAX_RATE, 2)
-    total = round(subtotal + DELIVERY_FEE + service + BAG_FEE + tip + tax, 2)
-    return {
-        "subtotal": subtotal, "delivery_fee": DELIVERY_FEE, "service_fee": service,
-        "bag_fee": BAG_FEE, "tip": tip, "tax": tax, "total": total,
-    }
+    return {"subtotal": subtotal, "shipping": 0.0, "tax": tax, "total": round(subtotal + tax, 2)}
+
+
+def evaluate_offer(lines: list) -> dict:
+    eligible_spend = round(sum(l["line_total"] for l in lines if not l["product"]["clearance"]), 2)
+    has_clearance = any(l["product"]["clearance"] for l in lines)
+    if eligible_spend >= OFFER["min_spend"]:
+        credit = round(min(OFFER["max_credit"], eligible_spend * OFFER["rate"]), 2)
+        return {"eligible": True, "eligible_spend": eligible_spend, "credit": credit, "reason": None}
+    reason = (
+        "Clearance items are excluded from the Wayfair offer"
+        if has_clearance and eligible_spend == 0
+        else f"The Wayfair offer needs $500+ in eligible items (cart has ${eligible_spend:,.2f})"
+    )
+    return {"eligible": False, "eligible_spend": eligible_spend, "credit": 0.0, "reason": reason}
 
 
 async def ensure_agents() -> None:
@@ -262,11 +206,11 @@ async def ensure_agents() -> None:
         await db.agents.update_one({"id": a["id"]}, {"$setOnInsert": {**a, "connected_at": now_iso(), "revoked": False}}, upsert=True)
 
 
-async def get_session(sid: str) -> dict:
-    s = await db.checkout_sessions.find_one({"id": sid}, {"_id": 0})
-    if not s:
-        raise HTTPException(404, "Checkout session not found")
-    return s
+async def get_cart(ref: str) -> dict:
+    c = await db.carts.find_one({"cart_ref": ref}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Cart not found")
+    return c
 
 
 app = FastAPI()
@@ -299,7 +243,7 @@ async def chat_stream(req: ChatRequest):
     prompt = (f"Conversation so far:\n{context}\n\nUSER: {req.message}" if context else req.message)
     await db.chat_messages.insert_one({"session_id": req.session_id, "role": "user", "text": req.message, "created_at": now_iso()})
 
-    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"{req.session_id}-{uuid.uuid4()}", system_message=system_prompt(req.agent_id, req.cart)).with_model("openai", "gpt-5.4")
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"{req.session_id}-{uuid.uuid4()}", system_message=system_prompt(req.agent_id, req.cart)).with_model(*AGENT_JOURNEYS[req.agent_id]["model"])
 
     async def gen():
         full = ""
@@ -320,120 +264,95 @@ async def chat_stream(req: ChatRequest):
     return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-# ---------------- ACP: checkout session ----------------
-@api.post("/checkout_sessions")
-async def create_checkout(body: CheckoutCreate):
-    journey = AGENT_JOURNEYS.get(body.agent_id)
-    if not journey or not await db.agents.find_one({"id": body.agent_id}):
-        raise HTTPException(404, "Agent not found")
-    lines = build_lines(body.items, journey["merchant"])
-    sid = f"cs_{secrets.token_hex(8)}"
-    session = {
-        "id": sid, "status": "ready_for_payment", "protocol": journey["protocol"],
-        "merchant": journey["merchant"], "agent_id": body.agent_id, "wallet": journey["wallet"],
-        "line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, body.tip), "currency": "USD",
-        "fulfillment": {"type": "delivery", "address": "10848 South Bell Avenue, Chicago, IL", "window": "10:16am – 11:17am"},
-        "card": CARD, "created_at": now_iso(),
+# ---------------- Wayfair cart (ACP / UCP checkout session) ----------------
+@api.post("/carts")
+async def create_cart(body: CartCreate):
+    lines = build_lines(body.items)
+    cart = {
+        "cart_ref": f"wf_cart_{secrets.token_hex(6)}", "status": "open", "retailer": "Wayfair",
+        "agent_id": body.agent_id, "protocol": AGENT_JOURNEYS[body.agent_id]["protocol"],
+        "wallet": AGENT_JOURNEYS[body.agent_id]["wallet"],
+        "line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines),
+        "offer_status": "unchecked", "offer": None, "activation": None, "created_at": now_iso(),
     }
-    await db.checkout_sessions.insert_one(dict(session))
-    return session
+    await db.carts.insert_one(dict(cart))
+    return cart
 
 
-@api.get("/checkout_sessions/{sid}")
-async def read_checkout(sid: str):
-    return await get_session(sid)
+@api.get("/carts/{ref}")
+async def read_cart(ref: str):
+    return await get_cart(ref)
 
 
-# ACP "update checkout session" / UCP cart update: change items or tip before authorization
-@api.patch("/checkout_sessions/{sid}")
-async def update_checkout(sid: str, body: CheckoutUpdate):
-    s = await get_session(sid)
-    if s["status"] != "ready_for_payment":
-        raise HTTPException(400, "Checkout is locked after Citi authorization")
-    lines = build_lines(body.items, s["merchant"]) if body.items else s["line_items"]
-    tip = body.tip if body.tip is not None else s["totals"]["tip"]
-    upd = {"line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines, tip)}
-    await db.checkout_sessions.update_one({"id": sid}, {"$set": upd})
-    return {**s, **upd}
+@api.patch("/carts/{ref}")
+async def update_cart(ref: str, body: CartUpdate):
+    c = await get_cart(ref)
+    if c["status"] != "open":
+        raise HTTPException(400, "Order already placed")
+    lines = build_lines(body.items)
+    upd = {"line_items": lines, "summary": summarize(lines), "totals": compute_totals(lines),
+           "offer_status": "unchecked", "offer": None, "activation": None}
+    await db.carts.update_one({"cart_ref": ref}, {"$set": upd})
+    return {**c, **upd}
 
 
-# ---------------- Mastercard Agent Pay: agentic token ----------------
-@api.post("/agentpay/tokenize")
-async def tokenize(body: TokenizeRequest):
-    s = await get_session(body.checkout_session_id)
-    if s["status"] != "authorized":
-        raise HTTPException(400, "Citi has not authorized this purchase")
-    token = {
-        "agentic_token": f"mc_atk_{secrets.token_hex(6)}",
-        "token_pan_last4": str(5000 + secrets.randbelow(4999)),
-        "funding_pan_last4": CARD["last4"],
-        "agent_id": s["agent_id"],
-        "scope": {"merchant": s["merchant"], "max_amount": s["totals"]["total"], "currency": "USD", "single_use": True},
-        "cryptogram": secrets.token_urlsafe(18),
-        "expires_in": 900,
-    }
-    await db.checkout_sessions.update_one({"id": s["id"]}, {"$set": {"agent_token": token}})
-    return token
+# ---------------- Citi Offers ↔ Mastercard Offers ----------------
+@api.post("/citi/offers/lookup")
+async def lookup_offers(body: CartRef):
+    c = await get_cart(body.cart_ref)
+    if c.get("activation"):
+        return {"cart_ref": c["cart_ref"], "eligible": True, "offer": c["offer"], "card": CARD, "reason": None,
+                "mastercard_request_id": c["offer"]["mastercard_request_id"], "already_activated": True}
+    result = evaluate_offer(c["line_items"])
+    req_id = f"mco_req_{secrets.token_hex(5)}"
+    offer = {**OFFER, "credit": result["credit"], "eligible_spend": result["eligible_spend"], "mastercard_request_id": req_id} if result["eligible"] else None
+    await db.carts.update_one({"cart_ref": c["cart_ref"]}, {"$set": {"offer_status": "eligible" if offer else "no_match", "offer": offer}})
+    return {"cart_ref": c["cart_ref"], "eligible": result["eligible"], "offer": offer, "card": CARD,
+            "reason": result["reason"], "mastercard_request_id": req_id, "already_activated": False}
 
 
-# ---------------- Citi issuer authorization ----------------
-@api.post("/citi/authorize")
-async def citi_authorize(body: AuthorizeRequest):
-    s = await get_session(body.checkout_session_id)
-    if s["status"] != "ready_for_payment":
-        existing = await db.transactions.find_one({"checkout_session_id": s["id"]}, {"_id": 0})
-        if existing:
-            return existing
-    agent = await db.agents.find_one({"id": s["agent_id"]}, {"_id": 0})
-    amount = s["totals"]["total"]
-    status, reason = "approved", None
-    if body.decision == "decline":
-        status, reason = "declined", "Declined by cardholder"
-    elif not agent or not agent.get("enabled") or agent.get("revoked"):
-        status, reason = "declined", f"{s['agent_id']} is not permitted to shop on this card"
-    elif amount > agent.get("limit", 0):
-        status, reason = "declined", f"Exceeds ${agent['limit']:.2f} agent spending limit"
-
-    existing = await db.transactions.find_one({"checkout_session_id": s["id"]}, {"_id": 0})
-    txn = {
-        "id": existing["id"] if existing else f"txn_{secrets.token_hex(6)}",
-        "checkout_session_id": s["id"], "merchant": s["merchant"],
-        "agent_id": s["agent_id"], "agent_name": agent["name"] if agent else s["agent_id"],
-        "item": s["summary"], "wallet": s.get("wallet"),
-        "item_full": "; ".join(f"{l['quantity']}x {l['product']['name']} ({l['product']['variant']})" for l in s["line_items"]),
-        "amount": amount, "card_last4": CARD["last4"], "status": status, "reason": reason,
-        "auth_code": secrets.token_hex(3).upper() if status == "approved" else None,
-        "points_earned": 0, "payment_option": None,
-        "created_at": existing["created_at"] if existing else now_iso(),
-    }
-    await db.transactions.update_one({"id": txn["id"]}, {"$set": txn}, upsert=True)
-    await db.checkout_sessions.update_one({"id": s["id"]}, {"$set": {"status": "authorized" if status == "approved" else "canceled"}})
-    return txn
+@api.post("/citi/offers/activate")
+async def activate_offer(body: ActivateRequest):
+    c = await get_cart(body.cart_ref)
+    if c.get("activation"):
+        return c["activation"]
+    if c["offer_status"] != "eligible" or not c.get("offer") or c["offer"]["id"] != body.offer_id:
+        raise HTTPException(400, "No eligible offer to activate for this cart")
+    activation = {"activation_id": f"mco_act_{secrets.token_hex(6)}", "offer_id": body.offer_id,
+                  "card_last4": CARD["last4"], "credit": c["offer"]["credit"], "activated_at": now_iso()}
+    await db.carts.update_one({"cart_ref": c["cart_ref"]}, {"$set": {"activation": activation, "offer_status": "activated"}})
+    return activation
 
 
-# ---------------- ACP: complete checkout ----------------
-@api.post("/checkout_sessions/{sid}/complete")
-async def complete_checkout(sid: str, body: CompleteRequest):
-    s = await get_session(sid)
-    txn = await db.transactions.find_one({"checkout_session_id": sid}, {"_id": 0})
-    if s["status"] == "completed" and s.get("order") and txn:
-        return {**s["order"], "amount": s["totals"]["total"], "transaction_id": txn["id"]}
-    if not txn or txn["status"] != "approved":
-        raise HTTPException(400, "Purchase was not authorized by Citi")
-    total = s["totals"]["total"]
-    points = 0 if body.payment_option == "points" else int(total * POINTS_PER_DOLLAR)
+# ---------------- Place order back in the Wayfair cart ----------------
+@api.post("/carts/{ref}/place_order")
+async def place_order(ref: str):
+    c = await get_cart(ref)
+    if c["status"] == "ordered":
+        return c["order"]
+    agent = await db.agents.find_one({"id": c["agent_id"]}, {"_id": 0})
+    if not agent or not agent.get("enabled") or agent.get("revoked"):
+        raise HTTPException(403, f"{AGENT_JOURNEYS[c['agent_id']]['name']} is paused in Citi Agent Controls")
+    total = c["totals"]["total"]
+    if total > agent.get("limit", 0):
+        raise HTTPException(403, f"Order exceeds the ${agent['limit']:,.2f} limit set for {agent['name']} in Citi Agent Controls")
+    credit = c["activation"]["credit"] if c.get("activation") else 0.0
     order = {
-        "order_id": f"{'TGT' if s['agent_id'] == 'gemini' else 'IC'}-{secrets.randbelow(900000) + 100000}",
-        "status": "completed", "points_earned": points,
-        "points_redeemed": int(round(total * 100)) if body.payment_option == "points" else 0,
-        "payment_option": body.payment_option,
-        "flex_monthly": round(total / 6, 2) if body.payment_option == "flex_pay" else None,
-        "eta": "Delivery by 11:45am",
+        "order_id": f"WF-{secrets.randbelow(9000000) + 1000000}", "amount": total, "wallet": c["wallet"],
+        "card_last4": CARD["last4"], "statement_credit": credit, "offer_activated": bool(c.get("activation")),
+        "points_earned": int(total * POINTS_PER_DOLLAR), "eta": "Delivery in 5–7 days",
     }
-    await db.transactions.update_one({"id": txn["id"]}, {"$set": {"status": "completed", "points_earned": points, "payment_option": body.payment_option, "order_id": order["order_id"]}})
-    await db.checkout_sessions.update_one({"id": sid}, {"$set": {"status": "completed", "order": order}})
-    return {**order, "amount": total, "transaction_id": txn["id"]}
-
+    txn = {
+        "id": f"txn_{secrets.token_hex(6)}", "cart_ref": ref, "merchant": "Wayfair", "agent_id": c["agent_id"],
+        "agent_name": AGENT_JOURNEYS[c["agent_id"]]["name"], "item": c["summary"],
+        "item_full": "; ".join(f"{l['quantity']}x {l['product']['name']}" for l in c["line_items"]),
+        "amount": total, "card_last4": CARD["last4"], "status": "completed", "reason": None,
+        "points_earned": order["points_earned"], "statement_credit": credit, "wallet": c["wallet"],
+        "order_id": order["order_id"], "created_at": now_iso(),
+    }
+    await db.transactions.insert_one(dict(txn))
+    await db.carts.update_one({"cart_ref": ref}, {"$set": {"status": "ordered", "order": order}})
+    return order
 
 @api.get("/transactions")
 async def list_transactions():
@@ -501,6 +420,7 @@ async def insights(month: Optional[str] = None):
         "purchases": len(spent),
         "declined": sum(1 for r in rows if r["status"] == "declined"),
         "points_earned": sum(r.get("points_earned", 0) for r in spent),
+        "statement_credits": round(sum(r.get("statement_credit", 0) for r in spent), 2),
         "by_agent": sorted(by_agent.values(), key=lambda x: -x["amount"]),
         "by_merchant": sorted(by_merchant.values(), key=lambda x: -x["amount"]),
     }

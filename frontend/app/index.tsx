@@ -5,8 +5,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { makeStyles, useTheme } from "@/src/theme";
-import { CitiLogo, MastercardLogo } from "@/src/components/Brand";
-import { PROTOCOL_OVERVIEW } from "@/src/protocols";
+import { MastercardLogo } from "@/src/components/Brand";
+import { PROTOCOL_OVERVIEW } from "@/src/flow";
 
 export default function Home() {
   const styles = useStyles();
@@ -25,8 +25,8 @@ export default function Home() {
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View style={[styles.hero, { paddingTop: insets.top + 16 }]}>
           <View style={styles.heroTop}>
-            <CitiLogo size={28} color={colors.onSurfaceInverse} />
             <Text style={styles.heroKicker}>Agentic Commerce</Text>
+            <Text style={styles.heroKicker}>Offers pilot</Text>
           </View>
           <Text style={styles.greeting}>Good morning, Pat</Text>
 
@@ -43,7 +43,7 @@ export default function Home() {
               </View>
               <View style={styles.agentPill}>
                 <Ionicons name="sparkles" size={12} color={colors.onInfo} />
-                <Text style={styles.agentPillText}>Agent Pay enabled</Text>
+                <Text style={styles.agentPillText}>Card offers on</Text>
               </View>
             </View>
           </Animated.View>
@@ -51,29 +51,29 @@ export default function Home() {
 
         <View style={styles.section}>
           <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.journeys}>
-            <Pressable testID="start-journey-button" style={styles.start} onPress={() => router.push("/journey?agent=chatgpt")}>
+            <Pressable testID="start-journey-button" style={styles.start} onPress={() => router.push("/shop?agent=chatgpt")}>
               <View style={styles.startIcon}>
                 <Ionicons name="chatbubbles" size={22} color={colors.onBrandPrimary} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.startTitle}>ChatGPT journey · ACP</Text>
-                <Text style={styles.startSub}>ChatGPT → Walmart → Apple Pay → Citi</Text>
+                <Text style={styles.startTitle}>Shop sofas with ChatGPT · ACP</Text>
+                <Text style={styles.startSub}>Wayfair app in ChatGPT → Check Citi offers</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
             </Pressable>
-            <Pressable testID="start-gemini-journey-button" style={[styles.start, styles.startGemini]} onPress={() => router.push("/journey?agent=gemini")}>
+            <Pressable testID="start-gemini-journey-button" style={[styles.start, styles.startGemini]} onPress={() => router.push("/shop?agent=gemini")}>
               <View style={[styles.startIcon, styles.startIconGemini]}>
                 <Ionicons name="sparkles" size={22} color={colors.onGeminiBlue} />
               </View>
               <View style={styles.flex}>
-                <Text style={styles.startTitle}>Gemini journey · UCP + AP2</Text>
-                <Text style={styles.startSub}>Gemini → Target (UCP) → Google Pay → Citi</Text>
+                <Text style={styles.startTitle}>Shop sofas with Gemini · UCP</Text>
+                <Text style={styles.startSub}>Wayfair via UCP in Gemini → Check Citi offers</Text>
               </View>
               <Ionicons name="arrow-forward" size={20} color={colors.onBrandPrimary} />
             </Pressable>
             <Pressable testID="home-compare-link" style={styles.compare} onPress={() => router.push("/compare")}>
               <Ionicons name="git-compare-outline" size={18} color={colors.stepActive} />
-              <Text style={styles.compareText}>Compare ACP vs UCP + AP2 side by side</Text>
+              <Text style={styles.compareText}>Compare how ACP and UCP hand off to Citi Offers</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.stepActive} />
             </Pressable>
           </Animated.View>

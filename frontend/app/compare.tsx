@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles, useTheme } from "@/src/theme";
-import { COMPARISON } from "@/src/protocols";
+import { COMPARISON } from "@/src/flow";
 
 export default function Compare() {
   const styles = useStyles();
@@ -19,12 +19,12 @@ export default function Compare() {
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-        <Text style={styles.large}>Protocol comparison</Text>
-        <Text style={styles.sub}>How the same Citi card purchase flows through each agentic stack. Mastercard Agent Pay sits underneath both.</Text>
+        <Text style={styles.large}>Citi offers flow</Text>
+        <Text style={styles.sub}>How the furniture offers check works when the shopper starts in ChatGPT (ACP) or Gemini (UCP). Mastercard Offers sits behind Citi in both.</Text>
         <View style={styles.legend}>
           <Text style={[styles.pill, styles.pillAcp]}>ChatGPT · ACP</Text>
-          <Text style={[styles.pill, styles.pillUcp]}>Gemini · UCP + AP2</Text>
-          <Text style={[styles.pill, styles.pillMc]}>Agent Pay</Text>
+          <Text style={[styles.pill, styles.pillUcp]}>Gemini · UCP</Text>
+          <Text style={[styles.pill, styles.pillMc]}>Mastercard Offers</Text>
         </View>
         {COMPARISON.map((row, i) => (
           <View key={row.stage} style={styles.card} testID={`compare-row-${i}`}>
@@ -34,20 +34,20 @@ export default function Compare() {
               <Text style={styles.cellText}>{row.acp}</Text>
             </View>
             <View style={styles.cell}>
-              <Text style={[styles.cellTag, styles.tagUcp]}>UCP · AP2</Text>
+              <Text style={[styles.cellTag, styles.tagUcp]}>UCP</Text>
               <Text style={styles.cellText}>{row.ucp}</Text>
             </View>
             <View style={styles.cell}>
-              <Text style={[styles.cellTag, styles.tagMc]}>Agent Pay</Text>
-              <Text style={styles.cellText}>{row.agentPay}</Text>
+              <Text style={[styles.cellTag, styles.tagMc]}>Mastercard Offers</Text>
+              <Text style={styles.cellText}>{row.offers}</Text>
             </View>
           </View>
         ))}
         <View style={styles.ctaRow}>
-          <Pressable testID="compare-try-chatgpt" style={styles.cta} onPress={() => router.push("/journey?agent=chatgpt")}>
+          <Pressable testID="compare-try-chatgpt" style={styles.cta} onPress={() => router.push("/shop?agent=chatgpt")}>
             <Text style={styles.ctaText}>Try ChatGPT</Text>
           </Pressable>
-          <Pressable testID="compare-try-gemini" style={[styles.cta, styles.ctaGemini]} onPress={() => router.push("/journey?agent=gemini")}>
+          <Pressable testID="compare-try-gemini" style={[styles.cta, styles.ctaGemini]} onPress={() => router.push("/shop?agent=gemini")}>
             <Text style={styles.ctaText}>Try Gemini</Text>
           </Pressable>
         </View>
