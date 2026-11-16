@@ -4,10 +4,10 @@
 Build an iOS mobile app "Citi Agentic Commerce": a mock working prototype recreating the user's screenshots (ChatGPT → Instacart → Citi Face ID → Citi Authorize → Pay → Confirmed) based on agentic protocols ACP, UCP, Mastercard Agent Pay.
 
 ## User choices
-Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Controls · Agent Activity history · Decline path
+Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Controls · Decline path
 
 ## Architecture
-- Expo Router (iOS-first), screens: `/` home, `/journey` 6-step wizard, `/agents`, `/activity`
+- Expo Router (iOS-first), screens: `/` home, `/journey` 6-step wizard, `/agents`
 - FastAPI + MongoDB; LLM gpt-5.4 via Emergent LLM key (SSE streaming, `[[product:id]]` tag renders Instacart widget)
 - Mock endpoints: ACP `/api/checkout_sessions` (+ `/complete`), Agent Pay `/api/agentpay/tokenize`, Citi `/api/citi/authorize` (enforces agent enabled/revoked + per-purchase limit), `/api/agents`, `/api/transactions`
 
@@ -15,6 +15,7 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 - Biometric pay authorization on every checkout: wallet pay sheet (Face ID / fingerprint, simulated) → Citi-branded "Payment approval" → order placed (src/components/PayAuthSheet.tsx); auto-plays in Presenter Mode
 - Presenter "Payment declined" scenario: velvet sofa, offer activated, Face ID passes but Citi declines (phone not registered), reason shown, declined txn logged via POST /api/carts/{ref}/decline
 - Presenter controls: Replay (restart scenario), Back one step (replays previous step), Pause/Play, Skip (fire next auto-step now, via src/presenter.ts useSkipDelay), Exit
+- Removed Agent Activity screen (/activity), its home link and the Done-screen button; Done now shows "Shop again"
 - Cleanup: removed ACP/UCP labels, badges and protocol fields everywhere; deleted /compare screen; Agent Activity history now Wayfair-only (no Walmart/Target)
 - ChatGPT-style chat chrome (sidebar, app picker, composer) + Presenter Mode (auto-play offer / no-offer scenarios with commentary, pause/exit)
 - App now opens straight into the ChatGPT chat surface (/ → /shop?agent=chatgpt); Citi hub moved to /home (grid icon); tap header to switch ChatGPT ↔ Gemini

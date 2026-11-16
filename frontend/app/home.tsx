@@ -16,7 +16,6 @@ export default function Home() {
 
   const links = [
     { id: "agents", icon: "options-outline" as const, title: "Agent Controls", sub: "Connected AI agents, spending limits, revoke access", to: "/agents" as const },
-    { id: "activity", icon: "receipt-outline" as const, title: "Agent Activity", sub: "Purchases made by agents on your card", to: "/activity" as const },
   ];
 
   return (

@@ -111,7 +111,7 @@ export function getProtocol(agentId: string, step: number, ctx: ProtocolCtx): Pr
           ? "When the Wayfair purchase clears, Mastercard matches it to the activation and Citi posts the statement credit."
           : "Order placed with no Citi offer. The purchase posts to the Citi card as usual.",
         flow: ["Wayfair", "Mastercard", "Citi statement"],
-        points: ["Clearing record matched to activation", "Credit posts within 5 business days of shipping", "Visible in Agent Activity"],
+        points: ["Clearing record matched to activation", "Credit posts within 5 business days of shipping"],
         endpoint: "WEBHOOK offers.redemption.matched",
         payload: ctx.order ?? {},
       };

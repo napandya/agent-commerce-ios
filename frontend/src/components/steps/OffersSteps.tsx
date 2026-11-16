@@ -338,8 +338,8 @@ export function WayfairCartStep({
 }
 
 export function DoneStep({
-  agentName, cart, order, onActivity, onRestart,
-}: { agentName: string; cart: Cart; order: Order; onActivity: () => void; onRestart: () => void }) {
+  agentName, cart, order, onRestart,
+}: { agentName: string; cart: Cart; order: Order; onRestart: () => void }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const rows: [string, string][] = [
@@ -372,12 +372,8 @@ export function DoneStep({
           </View>
         ))}
       </View>
-      <Pressable testID="view-agent-activity-button" style={styles.darkBtn} onPress={onActivity}>
-        <Text style={styles.payText}>View Agent Activity</Text>
-      </Pressable>
-      <Pressable testID="restart-journey-button" style={styles.ghostBtn} onPress={onRestart}>
-        <Ionicons name="refresh" size={16} color={colors.onSurface} />
-        <Text style={styles.ghostText}>Shop again</Text>
+      <Pressable testID="restart-journey-button" style={styles.darkBtn} onPress={onRestart}>
+        <Text style={styles.payText}>Shop again</Text>
       </Pressable>
     </ScrollView>
   );
@@ -474,6 +470,4 @@ const useStyles = makeStyles((c) => ({
   doneRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: c.divider },
   noBorder: { borderBottomWidth: 0 },
   darkBtn: { alignSelf: "stretch", height: 50, borderRadius: 999, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", marginTop: 8 },
-  ghostBtn: { flexDirection: "row", gap: 6, alignItems: "center", height: 44, paddingHorizontal: 16 },
-  ghostText: { fontSize: 15, fontWeight: "600", color: c.onSurface },
 }));

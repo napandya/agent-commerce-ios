@@ -28,19 +28,9 @@ export type Order = {
   order_id: string; amount: number; wallet: string; card_last4: string; statement_credit: number;
   offer_activated: boolean; points_earned: number; eta: string;
 };
-export type Txn = {
-  id: string; merchant: string; agent_id: string; agent_name: string; item: string; item_full: string;
-  amount: number; card_last4: string; status: "approved" | "declined" | "completed"; reason: string | null;
-  points_earned: number; statement_credit?: number; order_id?: string; created_at: string;
-};
 export type Agent = {
   id: string; name: string; provider: string; enabled: boolean;
   limit: number; revoked: boolean; connected_at: string;
-};
-export type Breakdown = { name: string; amount: number; count: number };
-export type Insights = {
-  month: string; total_spent: number; purchases: number; declined: number; points_earned: number;
-  statement_credits: number; by_agent: Breakdown[]; by_merchant: Breakdown[];
 };
 
 async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -63,9 +53,7 @@ export const api = {
   lookupOffers: (cart_ref: string) => req<Lookup>("/citi/offers/lookup", "POST", { cart_ref }),
   activateOffer: (cart_ref: string, offer_id: string) => req<Activation>("/citi/offers/activate", "POST", { cart_ref, offer_id }),
   placeOrder: (ref: string) => req<Order>(`/carts/${ref}/place_order`, "POST"),
-  declinePayment: (ref: string, reason: string) => req<Txn>(`/carts/${ref}/decline`, "POST", { reason }),
-  insights: (month: string) => req<Insights>(`/insights?month=${month}`),
-  transactions: () => req<Txn[]>("/transactions"),
+  declinePayment: (ref: string, reason: string) => req<unknown>(`/carts/${ref}/decline`, "POST", { reason }),
   agents: () => req<Agent[]>("/agents"),
   updateAgent: (id: string, body: Partial<Pick<Agent, "enabled" | "limit">>) => req<Agent>(`/agents/${id}`, "PATCH", body),
   revokeAgent: (id: string) => req<Agent>(`/agents/${id}/revoke`, "POST"),

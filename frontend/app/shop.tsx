@@ -40,12 +40,12 @@ function narration(step: number, s: Scenario, agent: string, wallet: string, dec
       : "Citi Offers asks Mastercard Offers for matches. The retailer-wide pilot matches: 10% back up to $150. Activating records it with Mastercard.",
     s === "declined"
       ? declined
-        ? "Citi declined the payment. Face ID passed on the phone, but the phone isn't registered with the shopper's Citi profile, so Citi can't tie the biometric to the cardholder. No order is placed, and the decline appears in Agent Activity."
+        ? "Citi declined the payment. Face ID passed on the phone, but the phone isn't registered with the shopper's Citi profile, so Citi can't tie the biometric to the cardholder. No order is placed."
         : `Back in the Wayfair cart the shopper pays with ${wallet} and confirms with Face ID. Watch Citi's check: the biometric passes on the phone, but Citi also verifies the device…`
       : `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet}, confirms with biometrics, and Citi approves the payment.`,
     s === "offer"
       ? "Order placed. When the purchase clears, Mastercard matches it to the activation and Citi posts the $125 statement credit."
-      : "Order placed without an offer — the purchase posts as usual and appears in Agent Activity.",
+      : "Order placed without an offer — the purchase posts to the Citi card as usual.",
   ][step];
 }
 
@@ -363,7 +363,7 @@ export default function Shop() {
             />
           )}
           {step === 4 && cart && order && (
-            <DoneStep agentName={agent.name} cart={cart} order={order} onActivity={() => router.push("/activity")} onRestart={restart} />
+            <DoneStep agentName={agent.name} cart={cart} order={order} onRestart={restart} />
           )}
         </View>
         <ProtocolPanel info={info} />
