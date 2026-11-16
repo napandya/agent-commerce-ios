@@ -72,7 +72,7 @@ export default function Agents() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]} testID="agents-screen">
       <View style={styles.nav}>
-        <Pressable testID="agents-back-button" style={styles.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}>
+        <Pressable testID="agents-back-button" style={styles.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))}>
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </Pressable>
       </View>

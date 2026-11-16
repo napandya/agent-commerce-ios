@@ -39,7 +39,7 @@ export default function Activity() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]} testID="activity-screen">
       <View style={styles.nav}>
-        <Pressable testID="activity-back-button" style={styles.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}>
+        <Pressable testID="activity-back-button" style={styles.iconBtn} onPress={() => (router.canGoBack() ? router.back() : router.replace("/home"))}>
           <Ionicons name="chevron-back" size={24} color={colors.onSurface} />
         </Pressable>
       </View>

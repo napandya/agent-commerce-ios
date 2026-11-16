@@ -106,14 +106,26 @@ export default function Shop() {
         <Pressable
           testID="journey-back-button"
           style={styles.iconBtn}
-          onPress={() => (canGoBack ? setStep(step === 3 ? 2 : step - 1) : router.canGoBack() ? router.back() : router.replace("/"))}
+          onPress={() => (canGoBack ? setStep(step === 3 ? 2 : step - 1) : router.push("/home"))}
         >
-          <Ionicons name={canGoBack ? "chevron-back" : "close"} size={22} color={colors.onSurface} />
+          <Ionicons name={canGoBack ? "chevron-back" : "grid-outline"} size={22} color={colors.onSurface} />
         </Pressable>
-        <View style={styles.titleWrap}>
-          <Text style={styles.title}>{agent.name} · {agent.protocol}</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>Citi offers during furniture shopping</Text>
-        </View>
+        <Pressable
+          testID="agent-switch-button"
+          style={styles.titleWrap}
+          onPress={() => {
+            restart();
+            router.setParams({ agent: agent.id === "chatgpt" ? "gemini" : "chatgpt" });
+          }}
+        >
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{agent.name} · {agent.protocol}</Text>
+            <Ionicons name="swap-horizontal" size={14} color={colors.muted} />
+          </View>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            Tap to switch to {agent.id === "chatgpt" ? "Gemini" : "ChatGPT"}
+          </Text>
+        </Pressable>
         <Pressable testID="journey-restart-button" style={styles.iconBtn} onPress={restart}>
           <Ionicons name="refresh" size={20} color={colors.onSurface} />
         </Pressable>
@@ -180,7 +192,8 @@ const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 4 },
   iconBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  titleWrap: { flex: 1, alignItems: "center" },
+  titleWrap: { flex: 1, alignItems: "center", minHeight: 44, justifyContent: "center" },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: { fontSize: 17, fontWeight: "700", color: c.onSurface },
   subtitle: { fontSize: 11, color: c.muted },
   body: { flex: 1, borderTopWidth: 1, borderTopColor: c.border, overflow: "hidden" },

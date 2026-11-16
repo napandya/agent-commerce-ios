@@ -12,6 +12,7 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 - Mock endpoints: ACP `/api/checkout_sessions` (+ `/complete`), Agent Pay `/api/agentpay/tokenize`, Citi `/api/citi/authorize` (enforces agent enabled/revoked + per-purchase limit), `/api/agents`, `/api/transactions`
 
 ## Implemented (Jun 2026)
+- App now opens straight into the ChatGPT chat surface (/ → /shop?agent=chatgpt); Citi hub moved to /home (grid icon); tap header to switch ChatGPT ↔ Gemini
 - REPLACED journeys with "Citi offers during furniture shopping" (Wayfair): real ChatGPT (gpt-5.4) / Gemini (gemini-3-flash-preview) chat → Check Citi offers → Citi sign-in with cart ref → Mastercard Offers lookup → Activate or "No matching offer" → return to cart → place order. Eligibility: $500+ non-clearance (10% back, max $150). Citi logo removed. Route /shop; endpoints /api/carts, /api/citi/offers/lookup|activate, /api/carts/{ref}/place_order
 - ChatGPT journey shops at Walmart (own catalog, Apple Pay); Gemini stays at Target (Google Pay)
 - Replaced Instacart with Apple Pay (ChatGPT journey) and Google Pay (Gemini journey); Target is merchant for both
