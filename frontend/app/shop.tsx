@@ -17,22 +17,33 @@ import { CitiSignInStep, DoneStep, OffersStep, WayfairCartStep } from "@/src/com
 
 const newSessionId = () => `chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-type Scenario = "offer" | "no_offer";
-const SCENARIOS: Record<Scenario, { prompt: string; product: string }> = {
-  offer: { prompt: "I need a big sectional for my living room", product: "wf-arnav-sectional" },
-  no_offer: { prompt: "Something small for my apartment, under $400", product: "wf-zipcode-loveseat" },
+type Scenario = "offer" | "no_offer" | "declined";
+const SCENARIOS: Record<Scenario, { prompt: string; product: string; label: string }> = {
+  offer: { prompt: "I need a big sectional for my living room", product: "wf-arnav-sectional", label: "OFFER" },
+  no_offer: { prompt: "Something small for my apartment, under $400", product: "wf-zipcode-loveseat", label: "NO OFFER" },
+  declined: { prompt: "Show me a velvet sofa in a bold color", product: "wf-etta-velvet", label: "DECLINED" },
 };
 
-function narration(step: number, s: Scenario, agent: string, wallet: string) {
-  const offer = s === "offer";
+const DECLINE = {
+  reason: "Declined by Citi · biometric device not registered",
+  detail:
+    "Face ID passed on the phone, but this phone isn't registered for biometric payment approval in the shopper's Citi profile. Citi can't link the biometric to the cardholder, so it blocks the payment to protect against account takeover. To fix it, register this device in the Citi app or approve with a one-time passcode.",
+};
+
+function narration(step: number, s: Scenario, agent: string, wallet: string, declined: boolean) {
+  const item = { offer: "a $1,249.99 sectional", no_offer: "a $389.99 loveseat", declined: "a $699.99 velvet sofa" }[s];
   return [
-    `${agent} is where the shopper starts. They ask for a sofa and the Wayfair app shows products and a cart. They add ${offer ? "a $1,249.99 sectional" : "a $389.99 loveseat"} and tap Check Citi offers.`,
+    `${agent} is where the shopper starts. They ask for a sofa and the Wayfair app shows products and a cart. They add ${item} and tap Check Citi offers.`,
     "Wayfair opens Citi's page with a signed cart reference — no card number or credentials are shared with the agent. The shopper signs in on Citi's page with Face ID.",
-    offer
-      ? "Citi Offers asks Mastercard Offers for matches. The retailer-wide pilot matches: 10% back up to $150. Activating records it with Mastercard."
-      : "Citi Offers asks Mastercard Offers for matches. None apply — the loveseat is under the $500 minimum — so Citi says so clearly and sends the shopper back.",
-    `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet}, confirms with biometrics, and Citi approves the payment.`,
-    offer
+    s === "no_offer"
+      ? "Citi Offers asks Mastercard Offers for matches. None apply — the loveseat is under the $500 minimum — so Citi says so clearly and sends the shopper back."
+      : "Citi Offers asks Mastercard Offers for matches. The retailer-wide pilot matches: 10% back up to $150. Activating records it with Mastercard.",
+    s === "declined"
+      ? declined
+        ? "Citi declined the payment. Face ID passed on the phone, but the phone isn't registered with the shopper's Citi profile, so Citi can't tie the biometric to the cardholder. No order is placed, and the decline appears in Agent Activity."
+        : `Back in the Wayfair cart the shopper pays with ${wallet} and confirms with Face ID. Watch Citi's check: the biometric passes on the phone, but Citi also verifies the device…`
+      : `Back in the Wayfair cart the offer status carries over. The shopper places the order with ${wallet}, confirms with biometrics, and Citi approves the payment.`,
+    s === "offer"
       ? "Order placed. When the purchase clears, Mastercard matches it to the activation and Citi posts the $125 statement credit."
       : "Order placed without an offer — the purchase posts as usual and appears in Agent Activity.",
   ][step];
@@ -63,10 +74,12 @@ export default function Shop() {
   const [autoPrompt, setAutoPrompt] = useState<string | null>(null);
   const [skip, setSkip] = useState(0);
   const [authOpen, setAuthOpen] = useState(false);
+  const [declined, setDeclined] = useState(false);
   const delay = useSkipDelay(skip);
   const setStep = (n: number) => {
     setError(null);
     setAuthOpen(false);
+    setDeclined(false);
     setStepRaw(n);
   };
 
@@ -150,12 +163,12 @@ export default function Shop() {
       if (messages.length === 0) t = setTimeout(() => setAutoPrompt(sc.prompt), wait(5000));
       else if (last?.role === "assistant" && (last.productIds || last.error) && !qty[sc.product]) t = setTimeout(() => setQty(sc.product, 1), wait(6000));
       else if (qty[sc.product] && !busy) t = setTimeout(checkOffers, wait(5000));
-    } else if (step === 3 && !busy && !error && !authOpen) {
+    } else if (step === 3 && !busy && !error && !authOpen && !declined) {
       t = setTimeout(() => setAuthOpen(true), wait(7000));
     }
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, presenting, step, messages, qty, busy, error, skip, authOpen]);
+  }, [running, presenting, step, messages, qty, busy, error, skip, authOpen, declined]);
 
   const stepBack = () => {
     if (step === 0) return;
@@ -166,6 +179,16 @@ export default function Shop() {
     setOrder(null);
     setPaused(false);
     setStep(step - 1);
+  };
+
+  const onDeclined = () => {
+    setDeclined(true);
+    if (cart) api.declinePayment(cart.cart_ref, DECLINE.reason).catch(() => {});
+  };
+
+  const closeAuth = () => {
+    setAuthOpen(false);
+    if (declined) setError(`Citi declined this payment: this phone isn't registered for biometric approval in your Citi profile.`);
   };
 
   const skipAhead = () => {
@@ -214,7 +237,7 @@ export default function Shop() {
           <View style={styles.presenterHead}>
             <View style={[styles.liveDot, paused && styles.liveDotPaused]} />
             <Text style={styles.presenterKicker} numberOfLines={1}>
-              {presenting === "offer" ? "OFFER" : "NO OFFER"} · {step + 1}/5
+              {SCENARIOS[presenting].label} · {step + 1}/5
             </Text>
             <Pressable testID="presenter-replay-button" style={styles.presenterBtn} onPress={() => startPresenter(presenting)} hitSlop={6}>
               <Ionicons name="reload" size={16} color={colors.onSurfaceInverse} />
@@ -233,9 +256,9 @@ export default function Shop() {
             </Pressable>
             <Pressable
               testID="presenter-skip-button"
-              style={[styles.presenterBtn, step === 4 && styles.presenterBtnOff]}
+              style={[styles.presenterBtn, (step === 4 || declined) && styles.presenterBtnOff]}
               onPress={skipAhead}
-              disabled={step === 4}
+              disabled={step === 4 || declined}
               hitSlop={6}
             >
               <Ionicons name="play-forward" size={16} color={colors.onSurfaceInverse} />
@@ -244,7 +267,7 @@ export default function Shop() {
               <Ionicons name="close" size={16} color={colors.onSurfaceInverse} />
             </Pressable>
           </View>
-          <Text style={styles.presenterText} testID="presenter-text">{narration(step, presenting, agent.name, agent.walletName)}</Text>
+          <Text style={styles.presenterText} testID="presenter-text">{narration(step, presenting, agent.name, agent.walletName, declined)}</Text>
         </View>
       )}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
@@ -264,6 +287,13 @@ export default function Shop() {
               <View style={styles.flex}>
                 <Text style={styles.modalOptTitle}>No matching offer</Text>
                 <Text style={styles.modalSub}>Loveseat under $500 · no offer</Text>
+              </View>
+            </Pressable>
+            <Pressable testID="presenter-start-declined" style={styles.modalOption} onPress={() => startPresenter("declined")}>
+              <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+              <View style={styles.flex}>
+                <Text style={styles.modalOptTitle}>Payment declined</Text>
+                <Text style={styles.modalSub}>Velvet sofa · Citi blocks an unregistered phone</Text>
               </View>
             </Pressable>
           </View>
@@ -320,14 +350,23 @@ export default function Shop() {
               error={error}
             />
           )}
+          {authOpen && step === 3 && cart && (
+            <PayAuthSheet
+              agent={agent}
+              cart={cart}
+              onApproved={placeOrder}
+              onCancel={closeAuth}
+              onDeclined={onDeclined}
+              decline={presenting === "declined" ? DECLINE : null}
+              auto={running}
+              skip={skip}
+            />
+          )}
           {step === 4 && cart && order && (
             <DoneStep agentName={agent.name} cart={cart} order={order} onActivity={() => router.push("/activity")} onRestart={restart} />
           )}
         </View>
         <ProtocolPanel info={info} />
-        {authOpen && step === 3 && cart && (
-          <PayAuthSheet agent={agent} cart={cart} onApproved={placeOrder} onCancel={() => setAuthOpen(false)} auto={running} skip={skip} />
-        )}
       </KeyboardAvoidingView>
     </View>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import Animated, { FadeIn, SlideInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,13 +10,14 @@ import { MastercardLogo, WalletMark } from "@/src/components/Brand";
 import { useSkipDelay } from "@/src/presenter";
 import type { AgentConfig } from "@/src/agents";
 
-type Phase = "sheet" | "scanning" | "citi" | "approved";
+type Phase = "sheet" | "scanning" | "citi" | "approved" | "declined";
 
 // Simulated wallet pay sheet + biometric check, followed by Citi's biometric approval.
 export function PayAuthSheet({
-  agent, cart, onApproved, onCancel, auto, skip = 0,
+  agent, cart, onApproved, onCancel, onDeclined, decline, auto, skip = 0,
 }: {
-  agent: AgentConfig; cart: Cart; onApproved: () => void; onCancel: () => void; auto?: boolean; skip?: number;
+  agent: AgentConfig; cart: Cart; onApproved: () => void; onCancel: () => void;
+  onDeclined?: () => void; decline?: { reason: string; detail: string } | null; auto?: boolean; skip?: number;
 }) {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -39,6 +40,12 @@ export function PayAuthSheet({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setPhase("citi");
       later(() => {
+        if (decline) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+          setPhase("declined");
+          onDeclined?.();
+          return;
+        }
         setPhase("approved");
         later(onApproved, 900);
       }, 2200);
@@ -54,11 +61,12 @@ export function PayAuthSheet({
   }, [auto, phase, skip]);
 
   const bio = apple ? "Face ID" : "fingerprint";
-  const citiStage = phase === "citi" || phase === "approved";
+  const citiStage = phase === "citi" || phase === "approved" || phase === "declined";
+  const declined = phase === "declined";
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+    <Animated.View entering={FadeIn.duration(200)} style={styles.backdrop}>
+      <View style={styles.flex}>
         <Pressable style={styles.flex} onPress={phase === "sheet" ? onCancel : undefined} testID="pay-auth-backdrop" />
         {citiStage ? (
           <Animated.View entering={SlideInDown.duration(260)} style={[styles.citi, { paddingBottom: insets.bottom + 24 }]} testID="citi-biometric-approval">
@@ -67,29 +75,48 @@ export function PayAuthSheet({
               <Text style={styles.citiBrand}>Citi</Text>
               <Text style={styles.citiKicker}>Payment approval</Text>
             </View>
-            <View style={[styles.citiCircle, phase === "approved" && styles.citiCircleDone]}>
-              {phase === "approved" ? (
+            <View style={[styles.citiCircle, phase === "approved" && styles.citiCircleDone, declined && styles.citiCircleDeclined]}>
+              {declined ? (
+                <Ionicons name="close" size={40} color={colors.onError} />
+              ) : phase === "approved" ? (
                 <Ionicons name="checkmark" size={40} color={colors.onSuccess} />
               ) : (
                 <ActivityIndicator size="large" color={colors.citiBlue} />
               )}
             </View>
             <Text style={styles.citiTitle} testID="citi-approval-title">
-              {phase === "approved" ? "Approved by Citi" : "Citi is approving your payment"}
+              {declined ? "Citi declined this payment" : phase === "approved" ? "Approved by Citi" : "Citi is approving your payment"}
             </Text>
             <Text style={styles.citiSub}>Wayfair · {money(cart.totals.total)} · Citi Mastercard ···· 4680</Text>
             <View style={styles.citiChecks}>
-              {[
-                [`${apple ? "Face ID" : "Fingerprint"} verified on this device`, true],
-                ["Biometric result matched to your Citi profile", phase === "approved"],
-                ["Payment authorized", phase === "approved"],
-              ].map(([label, done]) => (
-                <View key={label as string} style={styles.checkRow}>
-                  <Ionicons name={done ? "checkmark-circle" : "ellipse-outline"} size={18} color={done ? colors.success : colors.citiBorder} />
-                  <Text style={[styles.checkText, !!done && styles.checkTextOn]}>{label}</Text>
+              {(
+                [
+                  [`${apple ? "Face ID" : "Fingerprint"} verified on this device`, "ok"],
+                  [declined ? "This phone isn't registered with your Citi profile" : "Biometric result matched to your Citi profile", declined ? "fail" : phase === "approved" ? "ok" : "wait"],
+                  [declined ? "Payment not authorized" : "Payment authorized", declined ? "fail" : phase === "approved" ? "ok" : "wait"],
+                ] as const
+              ).map(([label, state]) => (
+                <View key={label} style={styles.checkRow}>
+                  <Ionicons
+                    name={state === "ok" ? "checkmark-circle" : state === "fail" ? "close-circle" : "ellipse-outline"}
+                    size={18}
+                    color={state === "ok" ? colors.success : state === "fail" ? colors.error : colors.citiBorder}
+                  />
+                  <Text style={[styles.checkText, state !== "wait" && styles.checkTextOn]}>{label}</Text>
                 </View>
               ))}
             </View>
+            {declined && decline && (
+              <>
+                <View style={styles.why} testID="citi-decline-reason">
+                  <Text style={styles.whyTitle}>Why was it declined?</Text>
+                  <Text style={styles.whyText}>{decline.detail}</Text>
+                </View>
+                <Pressable testID="citi-decline-back" style={styles.backBtn} onPress={onCancel}>
+                  <Text style={styles.backText}>Back to Wayfair cart</Text>
+                </Pressable>
+              </>
+            )}
           </Animated.View>
         ) : (
           <Animated.View entering={SlideInDown.duration(260)} style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} testID="wallet-pay-sheet">
@@ -130,13 +157,13 @@ export function PayAuthSheet({
           </Animated.View>
         )}
       </View>
-    </Modal>
+    </Animated.View>
   );
 }
 
 const useStyles = makeStyles((c) => ({
   flex: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: c.overlay },
+  backdrop: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: c.overlay },
   sheet: { backgroundColor: c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingHorizontal: 16, paddingTop: 16 },
   sheetHead: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
   cancel: { minHeight: 44, justifyContent: "center" },
@@ -159,6 +186,12 @@ const useStyles = makeStyles((c) => ({
   citiKicker: { fontSize: 12, color: c.citiMuted, marginLeft: "auto" },
   citiCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: c.citiCard, alignItems: "center", justifyContent: "center", marginTop: 8 },
   citiCircleDone: { backgroundColor: c.success },
+  citiCircleDeclined: { backgroundColor: c.error },
+  why: { alignSelf: "stretch", borderWidth: 1, borderColor: c.citiBorder, borderRadius: 14, padding: 14, gap: 4 },
+  whyTitle: { fontSize: 13, fontWeight: "700", color: c.onSurfaceInverse },
+  whyText: { fontSize: 13, lineHeight: 19, color: c.citiMuted },
+  backBtn: { alignSelf: "stretch", minHeight: 48, borderRadius: 999, borderWidth: 1.5, borderColor: c.onSurfaceInverse, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  backText: { fontSize: 15, fontWeight: "700", color: c.onSurfaceInverse },
   citiTitle: { fontSize: 20, fontWeight: "800", color: c.onSurfaceInverse, textAlign: "center" },
   citiSub: { fontSize: 13, color: c.citiMuted, textAlign: "center" },
   citiChecks: { alignSelf: "stretch", backgroundColor: c.citiCard, borderRadius: 14, padding: 14, gap: 10, marginTop: 4 },

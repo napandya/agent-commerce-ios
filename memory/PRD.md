@@ -13,6 +13,7 @@ Live AI chat · Simulated Face ID popup · Protocol panel per step · Agent Cont
 
 ## Implemented (Jun 2026)
 - Biometric pay authorization on every checkout: wallet pay sheet (Face ID / fingerprint, simulated) → Citi-branded "Payment approval" → order placed (src/components/PayAuthSheet.tsx); auto-plays in Presenter Mode
+- Presenter "Payment declined" scenario: velvet sofa, offer activated, Face ID passes but Citi declines (phone not registered), reason shown, declined txn logged via POST /api/carts/{ref}/decline
 - Presenter controls: Replay (restart scenario), Back one step (replays previous step), Pause/Play, Skip (fire next auto-step now, via src/presenter.ts useSkipDelay), Exit
 - Cleanup: removed ACP/UCP labels, badges and protocol fields everywhere; deleted /compare screen; Agent Activity history now Wayfair-only (no Walmart/Target)
 - ChatGPT-style chat chrome (sidebar, app picker, composer) + Presenter Mode (auto-play offer / no-offer scenarios with commentary, pause/exit)

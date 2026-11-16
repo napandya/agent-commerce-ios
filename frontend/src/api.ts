@@ -63,6 +63,7 @@ export const api = {
   lookupOffers: (cart_ref: string) => req<Lookup>("/citi/offers/lookup", "POST", { cart_ref }),
   activateOffer: (cart_ref: string, offer_id: string) => req<Activation>("/citi/offers/activate", "POST", { cart_ref, offer_id }),
   placeOrder: (ref: string) => req<Order>(`/carts/${ref}/place_order`, "POST"),
+  declinePayment: (ref: string, reason: string) => req<Txn>(`/carts/${ref}/decline`, "POST", { reason }),
   insights: (month: string) => req<Insights>(`/insights?month=${month}`),
   transactions: () => req<Txn[]>("/transactions"),
   agents: () => req<Agent[]>("/agents"),

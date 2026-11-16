@@ -155,6 +155,10 @@ class CartRef(BaseModel):
     cart_ref: str
 
 
+class DeclineRequest(BaseModel):
+    reason: str
+
+
 class ActivateRequest(BaseModel):
     cart_ref: str
     offer_id: str
@@ -353,6 +357,21 @@ async def place_order(ref: str):
     await db.transactions.insert_one(dict(txn))
     await db.carts.update_one({"cart_ref": ref}, {"$set": {"status": "ordered", "order": order}})
     return order
+
+@api.post("/carts/{ref}/decline")
+async def decline_payment(ref: str, body: DeclineRequest):
+    c = await get_cart(ref)
+    txn = {
+        "id": f"txn_{secrets.token_hex(6)}", "cart_ref": ref, "merchant": "Wayfair", "agent_id": c["agent_id"],
+        "agent_name": AGENT_JOURNEYS[c["agent_id"]]["name"], "item": c["summary"],
+        "item_full": "; ".join(f"{l['quantity']}x {l['product']['name']}" for l in c["line_items"]),
+        "amount": c["totals"]["total"], "card_last4": CARD["last4"], "status": "declined", "reason": body.reason,
+        "points_earned": 0, "statement_credit": 0.0, "wallet": c["wallet"], "created_at": now_iso(),
+    }
+    await db.transactions.insert_one(dict(txn))
+    txn.pop("_id", None)
+    return txn
+
 
 @api.get("/transactions")
 async def list_transactions():
