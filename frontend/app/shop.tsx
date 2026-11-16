@@ -153,6 +153,17 @@ export default function Shop() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, presenting, step, messages, qty, busy, error, skip]);
 
+  const stepBack = () => {
+    if (step === 0) return;
+    if (step <= 3) {
+      setLookup(null);
+      setActivation(null);
+    }
+    setOrder(null);
+    setPaused(false);
+    setStep(step - 1);
+  };
+
   const skipAhead = () => {
     setPaused(false);
     setSkip((n) => n + 1);
@@ -198,11 +209,20 @@ export default function Shop() {
         <View style={styles.presenter} testID="presenter-commentary">
           <View style={styles.presenterHead}>
             <View style={[styles.liveDot, paused && styles.liveDotPaused]} />
-            <Text style={styles.presenterKicker}>
-              PRESENTER · {presenting === "offer" ? "OFFER" : "NO OFFER"} · {step + 1}/5
+            <Text style={styles.presenterKicker} numberOfLines={1}>
+              {presenting === "offer" ? "OFFER" : "NO OFFER"} · {step + 1}/5
             </Text>
             <Pressable testID="presenter-replay-button" style={styles.presenterBtn} onPress={() => startPresenter(presenting)} hitSlop={6}>
-              <Ionicons name="play-back" size={16} color={colors.onSurfaceInverse} />
+              <Ionicons name="reload" size={16} color={colors.onSurfaceInverse} />
+            </Pressable>
+            <Pressable
+              testID="presenter-back-button"
+              style={[styles.presenterBtn, step === 0 && styles.presenterBtnOff]}
+              onPress={stepBack}
+              disabled={step === 0}
+              hitSlop={6}
+            >
+              <Ionicons name="play-skip-back" size={16} color={colors.onSurfaceInverse} />
             </Pressable>
             <Pressable testID="presenter-pause-button" style={styles.presenterBtn} onPress={() => setPaused((p) => !p)} hitSlop={6}>
               <Ionicons name={paused ? "play" : "pause"} size={16} color={colors.onSurfaceInverse} />
@@ -227,7 +247,7 @@ export default function Shop() {
         <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)}>
           <View style={styles.modalCard} testID="presenter-picker">
             <Text style={styles.modalTitle}>Presenter mode</Text>
-            <Text style={styles.modalSub}>Auto-plays the {agent.name} offers flow with commentary. Pause, skip ahead, replay or exit any time.</Text>
+            <Text style={styles.modalSub}>Auto-plays the {agent.name} offers flow with commentary. Pause, go back a step, skip ahead, replay or exit any time.</Text>
             <Pressable testID="presenter-start-offer" style={styles.modalOption} onPress={() => startPresenter("offer")}>
               <Ionicons name="pricetag" size={18} color={colors.success} />
               <View style={styles.flex}>
